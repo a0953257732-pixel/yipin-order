@@ -76,6 +76,23 @@ img,svg,video,canvas{max-width:100%;height:auto}
   .fulfillment{grid-template-columns:1fr}
   .brand{font-size:22px}
 }
+
+/* ===== LIFF 診斷面板 ===== */
+.liff-debug-toggle{
+  position:fixed;right:10px;bottom:72px;z-index:95;
+  border:1px solid #d7c69f;background:#fffaf0;color:#765f2f;
+  border-radius:999px;padding:8px 10px;font-size:11px;font-weight:900;
+  box-shadow:0 6px 18px rgba(0,0,0,.10)
+}
+.liff-debug{
+  display:none;position:fixed;left:10px;right:10px;bottom:118px;z-index:96;
+  max-height:42vh;overflow:auto;background:#10251c;color:#eef7f1;
+  border:1px solid #547260;border-radius:10px;padding:12px;
+  font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  box-shadow:0 10px 28px rgba(0,0,0,.28);white-space:pre-wrap;word-break:break-word
+}
+.liff-debug.show{display:block}
+
 </style></head><body>
 <header>
   <div class="info-strip">
@@ -107,6 +124,10 @@ img,svg,video,canvas{max-width:100%;height:auto}
 <div class="overlay" id="itemModal"><div class="sheet"><h2 id="title"></h2><div id="price"></div><div class="opt"><b>甜度</b><div class="choices" id="sweet"></div></div><div class="opt"><b>冰量</b><div class="choices" id="ice"></div></div><div class="opt"><b>加料</b><div class="choices" id="tops"></div></div><div class="actions"><button class="secondary" onclick="closeM('itemModal')">取消</button><button class="primary" onclick="addItem()">加入購物車</button></div></div></div>
 <div class="overlay" id="cartModal"><div class="sheet"><h2>購物車</h2><div id="cart"></div><div class="total">合計 $<span id="cartTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('cartModal')">繼續選購</button><button class="primary" onclick="checkout()">選擇取餐方式</button></div></div></div>
 <div class="overlay" id="checkoutModal"><div class="sheet"><h2>確認訂單</h2><div class="form"><div class="fulfillment"><label><input type="radio" name="method" value="自取" checked onchange="toggleMethod()">🏪 門市自取</label><label><input type="radio" name="method" value="外送" onchange="toggleMethod()">🛵 外送到府</label></div><div id="deliveryHint" class="delivery-note hidden">外送訂單滿 $200 即可送出，實際配送範圍與送達時間以店家確認為準。</div><label>姓名<input id="name"></label><label>電話<input id="phone"></label><label id="timeLabel">自取時間<input id="time" type="datetime-local"></label><label id="addressLabel" class="hidden">外送地址<input id="address" placeholder="請輸入完整地址（含樓層／公司名稱）"></label><label>備註<textarea id="remark" rows="3" placeholder="例如：公司櫃台、到達請來電"></textarea></label></div><div class="total">訂單金額 $<span id="checkoutTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('checkoutModal')">返回</button><button class="primary" onclick="submitOrder()">送出訂單</button></div></div></div>
+
+<button type="button" class="liff-debug-toggle" onclick="toggleLiffDebug()">LIFF 診斷</button>
+<div class="liff-debug" id="liffDebug">LIFF 診斷尚未執行</div>
+
 <div class="overlay" id="successModal"><div class="sheet"><h2>訂單已送出！</h2><div id="successText"></div><div class="status"><b id="statusTitle">🔔 新訂單</b><div id="statusId"></div><div class="status-message" id="statusMessage">訂單已送達店家，等待店家接單。</div><div class="steps"><div class="step on" id="snew">新訂單</div><div class="step" id="saccepted">已接單</div><div class="step" id="smaking">製作中</div><div class="step" id="sdone">已完成</div></div></div><div class="actions"><button class="primary" onclick="returnToLine()">完成訂單／回到 LINE</button></div></div></div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -114,6 +135,59 @@ img,svg,video,canvas{max-width:100%;height:auto}
 <script>
 const LIFF_ID="2011256472-3TidlkYv";
 let liffReady=false;
+
+
+
+function liffContextHint(){
+  try{
+    if(!window.liff || !liffReady) return;
+    const ctx=liff.getContext?.();
+    const ok=Boolean(liff.isInClient?.()) && Boolean(liff.isApiAvailable?.("sendMessages"));
+    if(!ok){
+      console.warn("LIFF context not suitable for sendMessages", ctx);
+    }
+  }catch(e){}
+}
+
+function toggleLiffDebug(){
+  const el=document.getElementById("liffDebug");
+  el.classList.toggle("show");
+  if(el.classList.contains("show")) refreshLiffDebug();
+    liffContextHint();
+}
+async function refreshLiffDebug(extra=""){
+  const el=document.getElementById("liffDebug");
+  if(!el) return;
+  const lines=[];
+  try{
+    lines.push("LIFF ID: "+LIFF_ID);
+    lines.push("SDK loaded: "+Boolean(window.liff));
+    lines.push("liffReady: "+Boolean(liffReady));
+    if(window.liff){
+      let inClient=false, loggedIn=false, context=null, sendAvail=false, os="", lang="";
+      try{inClient=liff.isInClient()}catch(e){}
+      try{loggedIn=liff.isLoggedIn()}catch(e){}
+      try{context=liff.getContext()}catch(e){}
+      try{sendAvail=Boolean(liff.isApiAvailable && liff.isApiAvailable("sendMessages"))}catch(e){}
+      try{os=liff.getOS()}catch(e){}
+      try{lang=liff.getLanguage()}catch(e){}
+      lines.push("isInClient: "+inClient);
+      lines.push("isLoggedIn: "+loggedIn);
+      lines.push("context.type: "+(context?.type ?? "(none)"));
+      lines.push("context.viewType: "+(context?.viewType ?? "(none)"));
+      lines.push("context.utouId: "+(context?.utouId ? "(present)" : "(none)"));
+      lines.push("sendMessages available: "+sendAvail);
+      lines.push("OS: "+os);
+      lines.push("language: "+lang);
+      lines.push("URL: "+location.href);
+      lines.push("UA contains LINE: "+/Line\//i.test(navigator.userAgent));
+    }
+  }catch(e){
+    lines.push("diagnostic error: "+(e?.message||String(e)));
+  }
+  if(extra) lines.push("\n"+extra);
+  el.textContent=lines.join("\n");
+}
 
 async function initLiff(){
   try{
@@ -152,11 +226,13 @@ async function sendOrderBackToLine(order,payload){
 
     if(!window.liff || !liff.isInClient()){
       console.warn("Not in LINE LIFF client, skip sendMessages");
+      refreshLiffDebug("sendMessages skipped: not in LINE LIFF client");
       return false;
     }
 
     if(!liff.isApiAvailable || !liff.isApiAvailable("sendMessages")){
       console.warn("liff.sendMessages is not available in this context");
+      refreshLiffDebug("sendMessages unavailable in this context");
       return false;
     }
 
@@ -166,9 +242,11 @@ async function sendOrderBackToLine(order,payload){
     }]);
 
     document.getElementById("statusMessage").textContent="訂單已送達店家，並已回傳到目前的 LINE 聊天室。";
+    refreshLiffDebug("sendMessages success");
     return true;
   }catch(e){
     console.error("LINE sendMessages failed:",e);
+    refreshLiffDebug("sendMessages error: "+(e?.message||String(e)));
     document.getElementById("statusMessage").textContent="訂單已送達店家，但 LINE 訂單訊息未能自動送出；請保留此頁的訂單編號。";
     return false;
   }
