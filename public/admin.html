@@ -3,9 +3,28 @@
 body{margin:0;background:#f3f5f3;color:#263328;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Microsoft JhengHei",Arial,sans-serif}
 header{background:#07502f;color:#fff;padding:18px 20px;display:flex;justify-content:space-between;align-items:center}main{max-width:1200px;margin:auto;padding:18px}.login{background:#fff;padding:20px;border-radius:16px;max-width:420px;margin:60px auto}.login input{width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:10px;box-sizing:border-box}.login button{width:100%;padding:12px;background:#07502f;color:#fff;border:0;border-radius:10px;font-weight:800}
 .board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.col{background:#e9ece9;border-radius:16px;padding:12px;min-height:400px}.col h2{font-size:16px}.card{background:#fff;border-radius:13px;padding:14px;margin:9px 0;box-shadow:0 2px 10px #0001}.id{font-weight:900;color:#07502f}.small{font-size:13px;color:#666;margin-top:4px}.items{font-size:13px;line-height:1.55;margin-top:10px}.money{text-align:right;font-size:18px;font-weight:900;margin-top:8px}.actions{display:flex;gap:6px;margin-top:10px}.actions button{border:0;border-radius:9px;padding:8px 10px;font-weight:800}.accept{background:#07502f;color:#fff}.making{background:#c98b1b;color:#fff}.done{background:#4d6f52;color:#fff}.cancel{background:#eee}.empty{color:#888;text-align:center;padding:30px 5px}@media(max-width:900px){.board{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.board{grid-template-columns:1fr}}
+
+/* ===== 後台手機版優化 ===== */
+*{box-sizing:border-box}
+html,body{max-width:100%;overflow-x:hidden}
+header{position:sticky;top:0;z-index:20;gap:8px}
+.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.refresh{border:0;border-radius:9px;padding:9px 12px;background:#fff;color:#07502f;font-weight:800}
+@media(max-width:560px){
+  header{padding:13px 12px;font-size:14px}
+  main{padding:10px}
+  .login{margin:30px auto;padding:16px}
+  .board{grid-template-columns:1fr;gap:10px}
+  .col{min-height:0;padding:10px;border-radius:12px}
+  .col h2{position:sticky;top:48px;background:#e9ece9;padding:8px 2px;margin:0 0 6px;z-index:4}
+  .card{padding:12px;border-radius:10px}
+  .actions{display:grid;grid-template-columns:1fr 1fr}
+  .actions button{min-height:42px}
+}
+
 </style></head><body>
 <header><b>一品現泡茶｜新生南店 店家後台</b><span id="bell">🔕</span></header><main><div id="login" class="login"><h2>店家登入</h2><input id="pin" type="password" placeholder="請輸入後台 PIN"><button onclick="login()">登入</button></div>
-<div id="app" style="display:none"><div class="board"><div class="col"><h2>🔔 新訂單 <span id="cnew">0</span></h2><div id="new"></div></div><div class="col"><h2>👋 已接單 <span id="caccepted">0</span></h2><div id="accepted"></div></div><div class="col"><h2>🥤 製作中 <span id="cmaking">0</span></h2><div id="making"></div></div><div class="col"><h2>✅ 已完成 <span id="cdone">0</span></h2><div id="done"></div></div></div></div></main>
+<div id="app" style="display:none"><div class="toolbar"><button class="refresh" onclick="load()">↻ 重新整理訂單</button><span class="small">狀態每 3 秒自動同步</span></div><div class="board"><div class="col"><h2>🔔 新訂單 <span id="cnew">0</span></h2><div id="new"></div></div><div class="col"><h2>👋 已接單 <span id="caccepted">0</span></h2><div id="accepted"></div></div><div class="col"><h2>🥤 製作中 <span id="cmaking">0</span></h2><div id="making"></div></div><div class="col"><h2>✅ 已完成 <span id="cdone">0</span></h2><div id="done"></div></div></div></div></main>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 let logged=false;
