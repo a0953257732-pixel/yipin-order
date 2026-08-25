@@ -132,6 +132,46 @@ function formatOrderForLine(order) {
   ].filter(Boolean).join("\n");
 }
 
+
+function statusText(status) {
+  const map = {
+    new: "等待店家接單",
+    accepted: "店家已接單",
+    making: "製作中",
+    done: "已完成",
+    cancelled: "已取消"
+  };
+  return map[status] || "狀態更新中";
+}
+
+function normalizeOrderId(input) {
+  const m = String(input || "").toUpperCase().match(/YP[A-F0-9]{8}/);
+  return m ? m[0] : "";
+}
+
+function findOrderById(orderId) {
+  if (!orderId) return null;
+  return readOrders().find(o => String(o.id || "").toUpperCase() === orderId.toUpperCase()) || null;
+}
+
+function formatOrderStatusReply(order) {
+  const method = order.method === "外送" ? "🛵 外送" : "🏪 門市自取";
+  const lines = [
+    `訂單編號：${order.id}`,
+    `目前狀態：${statusText(order.status)}`,
+    method,
+    `時間：${order.pickup}`,
+    `金額：$${order.total}`
+  ];
+  if (order.method === "外送" && order.address) lines.push(`地址：${order.address}`);
+  if (order.status === "new") lines.push("店家尚未接單，請稍候。");
+  if (order.status === "accepted") lines.push("店家已確認訂單，準備開始製作。");
+  if (order.status === "making") lines.push("飲品正在製作中，請稍候。");
+  if (order.status === "done") lines.push("訂單已完成，請依取餐／配送方式留意通知。");
+  if (order.status === "cancelled") lines.push("此訂單已取消，如有疑問請聯絡店家。");
+  return lines.join("\\n");
+}
+
 app.get("/api/health", (req, res) => {
   res.json({
     ok: true,
@@ -146,7 +186,6 @@ app.post("/webhook", async (req, res) => {
     return res.status(401).send("Invalid signature");
   }
 
-  // LINE 要求 webhook 盡快回 200
   res.sendStatus(200);
 
   const events = Array.isArray(req.body?.events) ? req.body.events : [];
@@ -156,32 +195,93 @@ app.post("/webhook", async (req, res) => {
       const source = event.source || {};
       const sourceId = source.userId || source.groupId || source.roomId || "";
 
-      // 方便你取得 LINE_NOTIFY_TARGET：
-      // 對官方帳號傳「取得通知ID」，Bot 會直接回覆該 user/group/room ID
-      if (
-        event.type === "message" &&
-        event.message?.type === "text" &&
-        event.message.text.trim() === "取得通知ID"
-      ) {
+      if (event.type !== "message" || event.message?.type !== "text") continue;
+
+      const message = String(event.message.text || "").trim();
+      const lower = message.toLowerCase();
+
+      if (message === "取得通知ID") {
         if (sourceId) {
           await replyLineMessage(
             event.replyToken,
-            `你的 LINE 通知 ID：\n${sourceId}\n\n請把這串填到 Render 的 LINE_NOTIFY_TARGET。`
+            `你的 LINE 通知 ID：
+${sourceId}
+
+請把這串填到 Render 的 LINE_NOTIFY_TARGET。`
           );
         }
+        continue;
       }
 
-      // 測試推播
-      if (
-        event.type === "message" &&
-        event.message?.type === "text" &&
-        event.message.text.trim() === "測試訂單通知"
-      ) {
+      if (message === "測試訂單通知") {
         await replyLineMessage(
           event.replyToken,
           "✅ LINE Webhook 已連線成功，可以開始接收網站訂單通知。"
         );
+        continue;
       }
+
+      if (message === "菜單" || message === "查看菜單") {
+        await replyLineMessage(
+          event.replyToken,
+          "📋 一品現泡茶線上菜單：
+https://yipin-order.onrender.com"
+        );
+        continue;
+      }
+
+      if (message === "點餐" || message === "開始點餐") {
+        await replyLineMessage(
+          event.replyToken,
+          "🧋 點這裡開始點餐：
+https://yipin-order.onrender.com"
+        );
+        continue;
+      }
+
+      if (message === "查訂單" || message === "訂單查詢" || message === "訂單") {
+        await replyLineMessage(
+          event.replyToken,
+          "請輸入：查訂單 + 訂單編號
+例如：查訂單 YP48CC459E"
+        );
+        continue;
+      }
+
+      if (message.startsWith("查訂單") || message.startsWith("訂單查詢")) {
+        const orderId = normalizeOrderId(message);
+        if (!orderId) {
+          await replyLineMessage(
+            event.replyToken,
+            "找不到訂單編號，請輸入完整格式，例如：
+查訂單 YP48CC459E"
+          );
+          continue;
+        }
+
+        const order = findOrderById(orderId);
+        if (!order) {
+          await replyLineMessage(
+            event.replyToken,
+            `查不到訂單 ${orderId}，請確認編號是否正確。`
+          );
+          continue;
+        }
+
+        await replyLineMessage(event.replyToken, formatOrderStatusReply(order));
+        continue;
+      }
+
+      // 若訊息中直接帶有訂單編號，也幫忙查詢
+      const directOrderId = normalizeOrderId(message);
+      if (directOrderId) {
+        const order = findOrderById(directOrderId);
+        if (order) {
+          await replyLineMessage(event.replyToken, formatOrderStatusReply(order));
+          continue;
+        }
+      }
+
     } catch (err) {
       console.error("LINE webhook event error:", err.message);
     }
