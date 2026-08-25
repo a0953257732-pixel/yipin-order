@@ -1,0 +1,4 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>一品現泡茶｜系統測試</title><style>body{font-family:Arial,"Microsoft JhengHei";padding:24px}button{padding:12px 18px;border:0;border-radius:10px;background:#07502f;color:#fff;font-weight:700}</style>
+<h2>一品現泡茶｜點餐系統測試</h2><p id="m">正在測試伺服器…</p><button onclick="location.href='/'">回到點餐網站</button>
+<script>(async()=>{try{const r=await fetch('/api/health');const x=await r.json();document.getElementById('m').textContent=x.ok?'✅ 伺服器連線正常':'❌ 伺服器異常'}catch(e){document.getElementById('m').textContent='❌ 無法連線到點餐伺服器：'+e.message}})()</script>
