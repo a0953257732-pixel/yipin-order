@@ -29,13 +29,17 @@ app.get("/api/health",(req,res)=>res.json({ok:true,service:"yipin-order"}));
 
 app.post("/api/orders",(req,res)=>{
   const o=req.body||{};
+  const method=o.method==="外送" ? "外送" : "自取";
+  const total=Number(o.total||0);
   if(!o.name || !o.phone || !o.pickup || !Array.isArray(o.items) || !o.items.length)
     return res.status(400).json({error:"缺少必要訂單資料"});
+  if(method==="外送" && total<200) return res.status(400).json({error:"外送訂單需滿 $200"});
+  if(method==="外送" && !String(o.address||"").trim()) return res.status(400).json({error:"請填寫外送地址"});
   const order={
     id:id(), createdAt:new Date().toISOString(), status:"new",
     name:String(o.name).slice(0,40), phone:String(o.phone).slice(0,30),
-    pickup:o.pickup, remark:String(o.remark||"").slice(0,300),
-    method:"自取", items:o.items, total:Number(o.total||0)
+    pickup:o.pickup, address:String(o.address||"").slice(0,160), remark:String(o.remark||"").slice(0,300),
+    method, items:o.items, total
   };
   const orders=readOrders(); orders.unshift(order); writeOrders(orders);
   io.emit("new-order",order);
