@@ -59,6 +59,7 @@ async function initLiff(){
     liffReady = true;
     console.log("LIFF ready", {
       inClient: liff.isInClient(),
+      loggedIn: typeof liff.isLoggedIn === "function" ? liff.isLoggedIn() : null,
       context: typeof liff.getContext === "function" ? liff.getContext() : null
     });
     return true;
@@ -69,36 +70,58 @@ async function initLiff(){
   }
 }
 
-function buildLineOrderText(order,payload){
-  const itemLines=(payload.items||[]).map((x,i)=>{
-    const extras=(x.tops||[]).length
-      ? `｜加料：${x.tops.map(t=>t.name).join("、")}`
+function safeText(v){
+  return String(v ?? "")
+    .replace(/\u0000/g,"")
+    .replace(/\r\n/g,"\n")
+    .replace(/\r/g,"\n")
+    .trim();
+}
+
+function buildCompactOrderText(order,payload){
+  const lines = [
+    "一品現泡茶｜新生南店｜訂單成立",
+    `訂單編號：${safeText(order.id)}`,
+    `取餐方式：${payload.method === "外送" ? "外送" : "門市自取"}`,
+    `姓名：${safeText(payload.name)}`,
+    `電話：${safeText(payload.phone)}`,
+    `時間：${safeText(payload.pickup)}`
+  ];
+
+  if(payload.method === "外送"){
+    lines.push(`地址：${safeText(payload.address)}`);
+  }
+
+  lines.push("");
+
+  (payload.items || []).forEach((x,i)=>{
+    const topText = (x.tops || []).length
+      ? `｜加料：${(x.tops || []).map(t=>safeText(t.name)).filter(Boolean).join("、")}`
       : "";
-    const itemPrice=Number(x.price||0)+(x.tops||[]).reduce((a,t)=>a+Number(t.p||0),0);
-    return `${i+1}. ${x.name}｜${x.sweet}｜${x.ice}${extras}｜$${itemPrice}`;
+    const itemPrice = Number(x.price || 0) + (x.tops || []).reduce((a,t)=>a+Number(t.p || 0),0);
+    lines.push(
+      `${i+1}. ${safeText(x.name)}｜${safeText(x.sweet)}｜${safeText(x.ice)}${topText}｜$${itemPrice}`
+    );
   });
 
-  return [
-    "🧋 一品現泡茶｜新生南店｜訂單成立",
-    `訂單編號：${order.id}`,
-    payload.method === "外送" ? "🛵 外送" : "🏪 門市自取",
-    `姓名：${payload.name}`,
-    `電話：${payload.phone}`,
-    `時間：${payload.pickup}`,
-    payload.method === "外送" ? `地址：${payload.address}` : "",
-    "",
-    ...itemLines,
-    "",
-    `💰 總金額：$${payload.total}`,
-    payload.remark ? `備註：${payload.remark}` : ""
-  ].filter(x=>x!=="").join("\n");
+  lines.push("");
+  lines.push(`總金額：$${Number(payload.total || 0)}`);
+
+  if(safeText(payload.remark)){
+    lines.push(`備註：${safeText(payload.remark)}`);
+  }
+
+  // LINE text message max is much larger than a normal drink order,
+  // but we still keep the message compact and hard-cap it for safety.
+  return lines.join("\n").slice(0, 4500);
 }
 
 async function sendOrderToCurrentLineChat(order,payload){
-  const status=document.getElementById("lineSendStatus");
-  const retry=document.getElementById("retryLineBtn");
+  const status = document.getElementById("lineSendStatus");
+  const retry = document.getElementById("retryLineBtn");
+
   retry.classList.add("hidden");
-  status.textContent="正在把訂單回傳到 LINE 聊天室…";
+  status.textContent = "正在把訂單回傳到 LINE 聊天室…";
 
   try{
     if(!liffReady){
@@ -114,20 +137,38 @@ async function sendOrderToCurrentLineChat(order,payload){
       throw new Error("SEND_MESSAGES_UNAVAILABLE");
     }
 
-    await liff.sendMessages([{
-      type:"text",
-      text:buildLineOrderText(order,payload)
-    }]);
+    const orderText = buildCompactOrderText(order,payload);
 
-    status.textContent="✅ 訂單已回傳到剛才的 LINE 官方帳號聊天室。";
+    if(!orderText){
+      throw new Error("EMPTY_ORDER_TEXT");
+    }
+
+    console.log("LINE send payload", {
+      length: orderText.length,
+      preview: orderText.slice(0,120)
+    });
+
+    // 只送一個最單純的純文字訊息，避免 INVALID_ARGUMENT。
+    await liff.sendMessages([
+      {
+        type: "text",
+        text: orderText
+      }
+    ]);
+
+    status.textContent = "✅ 訂單已回傳到剛才的 LINE 官方帳號聊天室。";
     retry.classList.add("hidden");
     return true;
+
   }catch(err){
-    console.error("LINE order send failed",err);
-    const code=err?.code || err?.message || "UNKNOWN";
-    status.textContent=
+    console.error("LINE order send failed", err);
+
+    const code = safeText(err?.code || err?.message || "UNKNOWN");
+
+    status.textContent =
       `⚠️ 訂單已建立，但 LINE 回傳失敗（${code}）。` +
-      `請從官方帳號聊天室內的 LIFF 點餐連結開啟後，再按「重新回傳 LINE」。`;
+      `請從官方帳號聊天室內的 LIFF 點餐連結重新開啟後，再按「重新回傳 LINE」。`;
+
     retry.classList.remove("hidden");
     return false;
   }
