@@ -67,8 +67,8 @@ function renderLiffDiag(extra=""){
   let inClient="unknown";
   let contextType="unknown";
   let viewType="unknown";
-  let sendAvailable="unknown";
   let loggedIn="unknown";
+  let sendFn="unknown";
 
   try{ inClient = window.liff ? liff.isInClient() : false; }catch(e){}
   try{ loggedIn = window.liff && typeof liff.isLoggedIn==="function" ? liff.isLoggedIn() : "n/a"; }catch(e){}
@@ -78,9 +78,7 @@ function renderLiffDiag(extra=""){
     viewType = ctx?.viewType ?? "(none)";
   }catch(e){}
   try{
-    sendAvailable = window.liff && typeof liff.isApiAvailable==="function"
-      ? liff.isApiAvailable("sendMessages")
-      : "n/a";
+    sendFn = window.liff && typeof liff.sendMessages === "function";
   }catch(e){}
 
   const lines = [
@@ -89,7 +87,7 @@ function renderLiffDiag(extra=""){
     `isLoggedIn：${loggedIn}`,
     `context.type：${contextType}`,
     `context.viewType：${viewType}`,
-    `sendMessages available：${sendAvailable}`
+    `sendMessages function：${sendFn}`
   ];
   if(extra) lines.push(`error：${extra}`);
   box.textContent = lines.join("\n");
@@ -101,11 +99,6 @@ async function initLiff(){
     await liff.init({ liffId: LIFF_ID });
     liffReady = true;
     renderLiffDiag();
-    console.log("LIFF ready", {
-      inClient: liff.isInClient(),
-      loggedIn: typeof liff.isLoggedIn === "function" ? liff.isLoggedIn() : null,
-      context: typeof liff.getContext === "function" ? liff.getContext() : null
-    });
     return true;
   }catch(err){
     console.error("LIFF init failed", err);
@@ -136,9 +129,7 @@ function buildCompactOrderText(order,payload){
       ? `｜加料：${(x.tops || []).map(t=>safeText(t.name)).filter(Boolean).join("、")}`
       : "";
     const itemPrice = Number(x.price || 0) + (x.tops || []).reduce((a,t)=>a+Number(t.p || 0),0);
-    lines.push(
-      `${i+1}. ${safeText(x.name)}｜${safeText(x.sweet)}｜${safeText(x.ice)}${topText}｜$${itemPrice}`
-    );
+    lines.push(`${i+1}. ${safeText(x.name)}｜${safeText(x.sweet)}｜${safeText(x.ice)}${topText}｜$${itemPrice}`);
   });
 
   lines.push("");
@@ -169,8 +160,11 @@ async function sendOrderToCurrentLineChat(order,payload){
       throw new Error("NOT_IN_LINE_CLIENT");
     }
 
-    if(typeof liff.isApiAvailable === "function" && !liff.isApiAvailable("sendMessages")){
-      throw new Error("SEND_MESSAGES_UNAVAILABLE");
+    // 重要：不要使用 liff.isApiAvailable("sendMessages")
+    // LINE 官方支援的 isApiAvailable 名稱清單裡沒有 sendMessages；
+    // 傳入不支援的名稱會回 INVALID_ARGUMENT。
+    if(typeof liff.sendMessages !== "function"){
+      throw new Error("SEND_MESSAGES_FUNCTION_MISSING");
     }
 
     const orderText = buildCompactOrderText(order,payload);
@@ -190,9 +184,7 @@ async function sendOrderToCurrentLineChat(order,payload){
     console.error("LINE order send failed", err);
 
     const code = safeText(err?.code || err?.message || "UNKNOWN");
-
-    status.textContent =
-      `⚠️ 訂單已建立，但 LINE 回傳失敗（${code}）。`;
+    status.textContent = `⚠️ 訂單已建立，但 LINE 回傳失敗（${code}）。`;
     renderLiffDiag(code);
 
     retry.classList.remove("hidden");
