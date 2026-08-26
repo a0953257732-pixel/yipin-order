@@ -44,7 +44,7 @@ main{max-width:900px;margin:18px auto 0;padding:0 18px 120px;background:rgba(255
 <div class="overlay" id="itemModal"><div class="sheet"><h2 id="title"></h2><div id="price"></div><div class="opt"><b>甜度</b><div class="choices" id="sweet"></div></div><div class="opt"><b>冰量</b><div class="choices" id="ice"></div></div><div class="opt"><b>加料</b><div class="choices" id="tops"></div></div><div class="actions"><button class="secondary" onclick="closeM('itemModal')">取消</button><button class="primary" onclick="addItem()">加入購物車</button></div></div></div>
 <div class="overlay" id="cartModal"><div class="sheet"><h2>購物車</h2><div id="cart"></div><div class="total">合計 $<span id="cartTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('cartModal')">繼續選購</button><button class="primary" onclick="checkout()">選擇取餐方式</button></div></div></div>
 <div class="overlay" id="checkoutModal"><div class="sheet"><h2>確認訂單</h2><div class="form"><div class="fulfillment"><label><input type="radio" name="method" value="自取" checked onchange="toggleMethod()">🏪 門市自取</label><label><input type="radio" name="method" value="外送" onchange="toggleMethod()">🛵 外送到府</label></div><div id="deliveryHint" class="delivery-note hidden">外送訂單滿 $200 即可送出，實際配送範圍與送達時間以店家確認為準。</div><label>姓名<input id="name"></label><label>電話<input id="phone"></label><label id="timeLabel">自取時間<input id="time" type="datetime-local"></label><label id="addressLabel" class="hidden">外送地址<input id="address" placeholder="請輸入完整地址（含樓層／公司名稱）"></label><label>備註<textarea id="remark" rows="3" placeholder="例如：公司櫃台、到達請來電"></textarea></label></div><div class="total">訂單金額 $<span id="checkoutTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('checkoutModal')">返回</button><button class="primary" onclick="submitOrder()">送出訂單</button></div></div></div>
-<div class="overlay" id="successModal"><div class="sheet"><h2>訂單已送出！</h2><div id="successText"></div><div class="status"><b id="statusTitle">🔔 新訂單</b><div id="statusId"></div><div class="status-message" id="lineSendStatus">正在把訂單回傳到 LINE 聊天室…</div><div class="status-message" id="liffDiag" style="margin-top:10px;font-size:12px;line-height:1.6;color:#5d675f;background:#fff;border:1px solid #d9e2da;border-radius:6px;padding:9px;text-align:left;">LIFF 診斷尚未完成</div><div class="steps"><div class="step on" id="snew">新訂單</div><div class="step" id="saccepted">已接單</div><div class="step" id="smaking">製作中</div><div class="step" id="sdone">已完成</div></div></div><div class="actions"><button class="secondary hidden" id="retryLineBtn" onclick="retryLineSend()">重新回傳 LINE</button><button class="primary" onclick="returnToLine()">完成訂單／回到 LINE</button></div></div></div>
+<div class="overlay" id="successModal"><div class="sheet"><h2>訂單已送出！</h2><div id="successText"></div><div class="status"><b id="statusTitle">🔔 新訂單</b><div id="statusId"></div><div class="status-message" id="lineSendStatus">正在把訂單回傳到 LINE 聊天室…</div><div class="steps"><div class="step on" id="snew">新訂單</div><div class="step" id="saccepted">已接單</div><div class="step" id="smaking">製作中</div><div class="step" id="sdone">已完成</div></div></div><div class="actions"><button class="secondary hidden" id="retryLineBtn" onclick="retryLineSend()">重新回傳 LINE</button><button class="primary" onclick="returnToLine()">完成訂單／回到 LINE</button></div></div></div>
 
 <script src="/socket.io/socket.io.js"></script><script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
@@ -60,38 +60,7 @@ function safeText(v){
     .trim();
 }
 
-function renderLiffDiag(extra=""){
-  const box=document.getElementById("liffDiag");
-  if(!box) return;
-
-  let inClient="unknown";
-  let contextType="unknown";
-  let viewType="unknown";
-  let loggedIn="unknown";
-  let sendFn="unknown";
-
-  try{ inClient = window.liff ? liff.isInClient() : false; }catch(e){}
-  try{ loggedIn = window.liff && typeof liff.isLoggedIn==="function" ? liff.isLoggedIn() : "n/a"; }catch(e){}
-  try{
-    const ctx = window.liff && typeof liff.getContext==="function" ? liff.getContext() : null;
-    contextType = ctx?.type ?? "(none)";
-    viewType = ctx?.viewType ?? "(none)";
-  }catch(e){}
-  try{
-    sendFn = window.liff && typeof liff.sendMessages === "function";
-  }catch(e){}
-
-  const lines = [
-    "LIFF 診斷",
-    `isInClient：${inClient}`,
-    `isLoggedIn：${loggedIn}`,
-    `context.type：${contextType}`,
-    `context.viewType：${viewType}`,
-    `sendMessages function：${sendFn}`
-  ];
-  if(extra) lines.push(`error：${extra}`);
-  box.textContent = lines.join("\n");
-}
+function renderLiffDiag(extra=""){}
 
 async function initLiff(){
   try{
@@ -198,7 +167,7 @@ async function retryLineSend(){
   }
 }
 
-const MENU={"現泡茶": [["一品冰茶（金萱）", 40], ["阿薩姆紅茶", 35], ["錫蘭紅茶", 40], ["伯爵紅茶", 40], ["大吉嶺紅茶", 40], ["阿里山青茶", 40], ["茉莉綠茶", 40], ["烏龍綠茶", 40], ["油切綠茶", 40], ["鐵觀音茶", 40], ["東方美人茶", 40], ["普洱茶", 40], ["蕎麥茶", 45], ["桂花烏龍茶", 45], ["蜜桃烏龍茶", 45]], "奶茶": [["一品二奶", 60], ["金萱奶茶", 55], ["茉香奶綠", 55], ["錫蘭奶茶", 55], ["伯爵奶茶", 55], ["阿薩姆奶茶", 55], ["烏龍奶茶", 55], ["鐵觀音奶茶", 55], ["北海道奶茶", 55], ["京都抹茶奶", 65], ["蜂蜜奶茶", 65], ["沖繩黑糖奶茶", 65], ["阿華田", 55], ["可可亞", 55], ["杏仁奶茶", 55], ["黑豆玄米抹茶奶", 65]], "口感奶茶": [["珍珠奶茶", 55], ["珍珠奶綠", 55], ["珍珠黑糖奶茶", 65], ["椰果奶茶", 55], ["珍椰奶茶", 55], ["仙草凍奶茶", 55], ["杏仁凍奶綠", 60], ["統一布丁奶茶", 65]], "鮮奶（瑞穗鮮奶）": [["鮮奶茶", 65], ["鮮奶綠", 65], ["烏龍鮮奶茶", 65], ["鐵觀音鮮奶茶", 65], ["伯爵鮮奶茶", 65], ["抹茶鮮奶茶", 75], ["黑糖鮮奶茶", 75], ["珍珠黑糖鮮奶", 80], ["仙草黑糖鮮奶", 80]], "檸檬": [["檸檬汁", 55], ["檸檬話梅", 55], ["金桔檸檬", 60], ["檸檬梅汁", 60], ["蜂蜜檸檬", 65], ["脆梅檸檬汁", 65], ["峇里島水果茶", 60]], "特調": [["蜜茶", 45], ["仙草蜜茶", 55], ["蜂蜜蘆薈", 55], ["檸檬蘆薈", 55], ["冬瓜茶", 40], ["冬瓜青茶", 55], ["冬瓜鐵觀音", 55], ["冬瓜檸檬", 60], ["蜂蜜綠茶", 55], ["百香綠茶", 55], ["芒果綠茶", 55], ["梅果綠茶", 55], ["檸檬綠茶", 55], ["脆脆青梅綠", 65], ["百香QQ", 60]], "養樂多": [["多多綠", 65], ["百香多多", 60], ["芒果多多", 60], ["檸檬多多", 65]], "養生": [["桂圓紅棗茶", 55], ["黑糖薑母茶", 55], ["韓式柚子茶", 60]], "無咖啡因茶": [["牛蒡茶", 45], ["南非國寶茶", 50], ["紅棗枸杞茶", 45], ["蔓越莓蘋果", 45]]}, TOPS=[["珍珠", 10], ["椰果", 10], ["蘆薈", 10], ["仙草凍", 10], ["綠茶凍", 15], ["杏仁凍", 15], ["統一布丁", 15], ["奶茶", 15], ["鮮奶", 25]], SWEET=["正常糖 80%", "少糖 70%", "半糖 50%", "微糖 30%", "點糖 10%", "無糖 0%"], ICE=["正常冰", "少冰", "微冰", "去冰", "常溫", "溫", "熱"];
+const MENU={"現泡茶": [["一品冰茶（金萱）", 40], ["阿薩姆紅茶", 35], ["錫蘭紅茶", 40], ["伯爵紅茶", 40], ["大吉嶺紅茶", 40], ["阿里山青茶", 40], ["翠玉煎茶", 40], ["茉莉綠茶", 40], ["烏龍綠茶", 40], ["油切綠茶", 40], ["鐵觀音茶", 40], ["東方美人茶", 40], ["普洱茶", 40], ["蕎麥茶", 45], ["桂花烏龍茶", 45], ["蜜桃烏龍茶", 45]], "奶茶": [["一品二奶", 60], ["金萱奶茶", 55], ["茉香奶綠", 55], ["錫蘭奶茶", 55], ["伯爵奶茶", 55], ["阿薩姆奶茶", 55], ["烏龍奶茶", 55], ["鐵觀音奶茶", 55], ["北海道奶茶", 55], ["京都抹茶奶", 65], ["蜂蜜奶茶", 65], ["沖繩黑糖奶茶", 65], ["阿華田", 55], ["可可亞", 55], ["杏仁奶茶", 55], ["黑豆玄米抹茶奶", 65]], "口感奶茶": [["珍珠奶茶", 55], ["珍珠奶綠", 55], ["珍珠黑糖奶茶", 65], ["椰果奶茶", 55], ["珍椰奶茶", 55], ["仙草凍奶茶", 55], ["杏仁凍奶綠", 60], ["統一布丁奶茶", 65]], "鮮奶（瑞穗鮮奶）": [["鮮奶茶", 65], ["鮮奶綠", 65], ["烏龍鮮奶茶", 65], ["鐵觀音鮮奶茶", 65], ["伯爵鮮奶茶", 65], ["抹茶鮮奶茶", 75], ["黑糖鮮奶茶", 75], ["珍珠黑糖鮮奶", 80], ["仙草黑糖鮮奶", 80]], "檸檬": [["檸檬汁", 55], ["檸檬話梅", 55], ["金桔檸檬", 60], ["檸檬梅汁", 60], ["蜂蜜檸檬", 65], ["脆梅檸檬汁", 65], ["峇里島水果茶", 60]], "特調": [["蜜茶", 45], ["仙草蜜茶", 55], ["蜂蜜蘆薈", 55], ["檸檬蘆薈", 55], ["冬瓜茶", 40], ["冬瓜青茶", 55], ["冬瓜鐵觀音", 55], ["冬瓜檸檬", 60], ["蜂蜜綠茶", 55], ["百香綠茶", 55], ["芒果綠茶", 55], ["梅果綠茶", 55], ["檸檬綠茶", 55], ["脆脆青梅綠", 65], ["百香QQ", 60]], "養樂多": [["多多綠", 65], ["百香多多", 60], ["芒果多多", 60], ["檸檬多多", 65]], "養生": [["桂圓紅棗茶", 55], ["黑糖薑母茶", 55], ["韓式柚子茶", 60]], "無咖啡因茶": [["牛蒡茶", 45], ["南非國寶茶", 50], ["紅棗枸杞茶", 45], ["蔓越莓蘋果", 45]]}, TOPS=[["珍珠", 10], ["椰果", 10], ["蘆薈", 10], ["仙草凍", 10], ["綠茶凍", 15], ["杏仁凍", 15], ["統一布丁", 15], ["奶茶", 15], ["鮮奶", 25]], SWEET=["正常糖 80%", "少糖 70%", "半糖 50%", "微糖 30%", "點糖 10%", "無糖 0%"], ICE=["正常冰", "少冰", "微冰", "去冰", "常溫", "溫", "熱"];
 let cart=[],current=null,trackingId=null; const nav=document.getElementById('nav'),menuEl=document.getElementById('menu');
 Object.keys(MENU).forEach((c,i)=>{const b=document.createElement('button');b.textContent=c;b.onclick=()=>show(c,b);if(i===0)b.classList.add('active');nav.appendChild(b)});show(Object.keys(MENU)[0],nav.children[0]);
 function show(c,b){document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');const note=c==='現泡茶'?'<span class="section-note">所有純茶皆可升級為奶茶或鮮奶茶</span>':'';menuEl.innerHTML='<div class="section-head"><div class="section-title-wrap"><h2>'+c+'</h2>'+note+'</div><span>'+MENU[c].length+' 款</span></div><div class="menu-grid">'+MENU[c].map((x,i)=>'<div class="card"><div><div class="name">'+x[0]+'</div></div><button type="button" class="add" aria-label="加入'+x[0]+'" data-cat="'+encodeURIComponent(c)+'" data-index="'+i+'">＋</button><div class="price">'+x[1]+'</div></div>').join('')+'</div>';
@@ -208,8 +177,39 @@ function closeM(id){document.getElementById(id).classList.remove('show')}functio
 function total(){return cart.reduce((a,x)=>a+x.price+x.tops.reduce((s,t)=>s+t.p,0),0)}function update(){document.getElementById('count').textContent=cart.length;document.getElementById('total').textContent=total()}
 function openCart(){renderCart();document.getElementById('cartModal').classList.add('show')}function renderCart(){document.getElementById('cart').innerHTML=cart.length?cart.map((x,i)=>'<div class="item"><div><b>'+x.name+'</b><div class="sub">'+x.sweet+'｜'+x.ice+(x.tops.length?'｜加料：'+x.tops.map(t=>t.name).join('、'):'')+'</div></div><div>$'+(x.price+x.tops.reduce((a,t)=>a+t.p,0))+'<br><button onclick="del('+i+')">刪除</button></div></div>').join(''):'<div class="empty-cart">購物車目前是空的<br><span class="note">選一杯喜歡的茶開始吧。</span></div>';document.getElementById('cartTotal').textContent=total()}
 function del(i){cart.splice(i,1);update();renderCart()}function checkout(){if(!cart.length)return alert('購物車是空的');closeM('cartModal');document.getElementById('checkoutTotal').textContent=total();toggleMethod();document.getElementById('checkoutModal').classList.add('show')}
-function toggleMethod(){const m=document.querySelector('input[name=method]:checked')?.value||'自取';const delivery=m==='外送';document.getElementById('addressLabel').classList.toggle('hidden',!delivery);document.getElementById('deliveryHint').classList.toggle('hidden',!delivery);document.getElementById('timeLabel').childNodes[0].nodeValue=delivery?'希望送達時間':'自取時間';}
-async function submitOrder(){const method=document.querySelector('input[name=method]:checked')?.value||'自取';const payload={name:document.getElementById('name').value.trim(),phone:document.getElementById('phone').value.trim(),pickup:document.getElementById('time').value,address:document.getElementById('address').value.trim(),method,remark:document.getElementById('remark').value,items:cart.map(x=>({...x,tops:(x.tops||[]).map(t=>({...t}))})),total:total()};if(!payload.name||!payload.phone||!payload.pickup)return alert('請完整填寫姓名、電話與時間');if(method==='外送'&&payload.total<200)return alert('外送訂單需滿 $200');if(method==='外送'&&!payload.address)return alert('請填寫完整外送地址');let r;try{r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})}catch(e){return alert('目前無法連線到點餐伺服器，請稍後再試')}if(!r.ok){let msg='送單失敗，請再試一次';try{const e=await r.json();if(e.error)msg=e.error}catch(e){}return alert(msg)}const o=await r.json();trackingId=o.id;lastLineOrder={order:o,payload};document.getElementById('statusId').textContent='訂單編號：'+o.id+'｜'+o.method;renderStatus(o.status||'new');closeM('checkoutModal');document.getElementById('successModal').classList.add('show');await sendOrderToCurrentLineChat(o,payload);cart=[];update();}
+
+function setMinimumOrderTime(){
+  const method=document.querySelector('input[name=method]:checked')?.value||'自取';
+  const input=document.getElementById('time');
+  if(!input) return;
+
+  const minutes=method==='外送'?30:20;
+  const minDate=new Date(Date.now()+minutes*60*1000);
+  minDate.setSeconds(0,0);
+
+  // Round up to the next minute so the minimum is never shorter than requested.
+  if(minDate.getTime() < Date.now()+minutes*60*1000){
+    minDate.setMinutes(minDate.getMinutes()+1);
+  }
+
+  const pad=n=>String(n).padStart(2,'0');
+  const value=`${minDate.getFullYear()}-${pad(minDate.getMonth()+1)}-${pad(minDate.getDate())}T${pad(minDate.getHours())}:${pad(minDate.getMinutes())}`;
+  input.min=value;
+
+  if(!input.value || input.value < value){
+    input.value=value;
+  }
+}
+
+function toggleMethod(){const m=document.querySelector('input[name=method]:checked')?.value||'自取';const delivery=m==='外送';document.getElementById('addressLabel').classList.toggle('hidden',!delivery);document.getElementById('deliveryHint').classList.toggle('hidden',!delivery);document.getElementById('timeLabel').childNodes[0].nodeValue=delivery?'希望送達時間（至少 30 分鐘）':'自取時間（至少 20 分鐘）';setMinimumOrderTime();}
+async function submitOrder(){const method=document.querySelector('input[name=method]:checked')?.value||'自取';const payload={name:document.getElementById('name').value.trim(),phone:document.getElementById('phone').value.trim(),pickup:document.getElementById('time').value,address:document.getElementById('address').value.trim(),method,remark:document.getElementById('remark').value,items:cart.map(x=>({...x,tops:(x.tops||[]).map(t=>({...t}))})),total:total()};if(!payload.name||!payload.phone||!payload.pickup)return alert('請完整填寫姓名、電話與時間');
+  const minMinutes=method==='外送'?30:20;
+  const selectedTime=new Date(payload.pickup).getTime();
+  const minimumTime=Date.now()+minMinutes*60*1000;
+  if(!Number.isFinite(selectedTime)||selectedTime<minimumTime){
+    setMinimumOrderTime();
+    return alert(method==='外送'?'外送時間請至少選擇 30 分鐘後':'自取時間請至少選擇 20 分鐘後');
+  }if(method==='外送'&&payload.total<200)return alert('外送訂單需滿 $200');if(method==='外送'&&!payload.address)return alert('請填寫完整外送地址');let r;try{r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})}catch(e){return alert('目前無法連線到點餐伺服器，請稍後再試')}if(!r.ok){let msg='送單失敗，請再試一次';try{const e=await r.json();if(e.error)msg=e.error}catch(e){}return alert(msg)}const o=await r.json();trackingId=o.id;lastLineOrder={order:o,payload};document.getElementById('statusId').textContent='訂單編號：'+o.id+'｜'+o.method;renderStatus(o.status||'new');closeM('checkoutModal');document.getElementById('successModal').classList.add('show');await sendOrderToCurrentLineChat(o,payload);cart=[];update();}
 if (typeof io === 'function') {
   const socket=io();
   socket.on('order-updated',o=>{if(o.id===trackingId)renderStatus(o.status)});
