@@ -84,7 +84,7 @@ function buildCompactOrderText(order,payload){
     `取餐方式：${payload.method === "外送" ? "外送" : "門市自取"}`,
     `姓名：${safeText(payload.name)}`,
     `電話：${safeText(payload.phone)}`,
-    `時間：${safeText(payload.pickup)}`
+    `${payload.method === "外送" ? "外送時間" : "自取時間"}：${safeText(payload.pickup).includes("T") ? safeText(payload.pickup).split("T")[1].slice(0,5) : safeText(payload.pickup)}`
   ];
 
   if(payload.method === "外送"){
