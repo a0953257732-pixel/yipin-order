@@ -44,7 +44,7 @@ main{max-width:900px;margin:18px auto 0;padding:0 18px 120px;background:rgba(255
 <div class="overlay" id="itemModal"><div class="sheet"><h2 id="title"></h2><div id="price"></div><div class="opt"><b>甜度</b><div class="choices" id="sweet"></div></div><div class="opt"><b>冰量</b><div class="choices" id="ice"></div></div><div class="opt"><b>加料</b><div class="choices" id="tops"></div></div><div class="actions"><button class="secondary" onclick="closeM('itemModal')">取消</button><button class="primary" onclick="addItem()">加入購物車</button></div></div></div>
 <div class="overlay" id="cartModal"><div class="sheet"><h2>購物車</h2><div id="cart"></div><div class="total">合計 $<span id="cartTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('cartModal')">繼續選購</button><button class="primary" onclick="checkout()">選擇取餐方式</button></div></div></div>
 <div class="overlay" id="checkoutModal"><div class="sheet"><h2>確認訂單</h2><div class="form"><div class="fulfillment"><label><input type="radio" name="method" value="自取" checked onchange="toggleMethod()">🏪 門市自取</label><label><input type="radio" name="method" value="外送" onchange="toggleMethod()">🛵 外送到府</label></div><div id="deliveryHint" class="delivery-note hidden">外送訂單滿 $200 即可送出，實際配送範圍與送達時間以店家確認為準。</div><label>姓名<input id="name"></label><label>電話<input id="phone"></label><label id="timeLabel">自取時間<input id="time" type="datetime-local"></label><label id="addressLabel" class="hidden">外送地址<input id="address" placeholder="請輸入完整地址（含樓層／公司名稱）"></label><label>備註<textarea id="remark" rows="3" placeholder="例如：公司櫃台、到達請來電"></textarea></label></div><div class="total">訂單金額 $<span id="checkoutTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('checkoutModal')">返回</button><button class="primary" onclick="submitOrder()">送出訂單</button></div></div></div>
-<div class="overlay" id="successModal"><div class="sheet"><h2>訂單已送出！</h2><div id="successText"></div><div class="status"><b id="statusTitle">🔔 新訂單</b><div id="statusId"></div><div class="status-message" id="lineSendStatus">正在把訂單回傳到 LINE 聊天室…</div><div class="steps"><div class="step on" id="snew">新訂單</div><div class="step" id="saccepted">已接單</div><div class="step" id="smaking">製作中</div><div class="step" id="sdone">已完成</div></div></div><div class="actions"><button class="secondary hidden" id="retryLineBtn" onclick="retryLineSend()">重新回傳 LINE</button><button class="primary" onclick="returnToLine()">完成訂單／回到 LINE</button></div></div></div>
+<div class="overlay" id="successModal"><div class="sheet"><h2>訂單已送出！</h2><div id="successText"></div><div class="status"><b id="statusTitle">🔔 新訂單</b><div id="statusId"></div><div class="status-message" id="lineSendStatus">正在把訂單回傳到 LINE 聊天室…</div><div class="status-message" id="liffDiag" style="margin-top:10px;font-size:12px;line-height:1.6;color:#5d675f;background:#fff;border:1px solid #d9e2da;border-radius:6px;padding:9px;text-align:left;">LIFF 診斷尚未完成</div><div class="steps"><div class="step on" id="snew">新訂單</div><div class="step" id="saccepted">已接單</div><div class="step" id="smaking">製作中</div><div class="step" id="sdone">已完成</div></div></div><div class="actions"><button class="secondary hidden" id="retryLineBtn" onclick="retryLineSend()">重新回傳 LINE</button><button class="primary" onclick="returnToLine()">完成訂單／回到 LINE</button></div></div></div>
 
 <script src="/socket.io/socket.io.js"></script><script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
@@ -52,11 +52,55 @@ const LIFF_ID = "2011256472-3TidlkYv";
 let liffReady = false;
 let lastLineOrder = null;
 
+function safeText(v){
+  return String(v ?? "")
+    .replace(/\u0000/g,"")
+    .replace(/\r\n/g,"\n")
+    .replace(/\r/g,"\n")
+    .trim();
+}
+
+function renderLiffDiag(extra=""){
+  const box=document.getElementById("liffDiag");
+  if(!box) return;
+
+  let inClient="unknown";
+  let contextType="unknown";
+  let viewType="unknown";
+  let sendAvailable="unknown";
+  let loggedIn="unknown";
+
+  try{ inClient = window.liff ? liff.isInClient() : false; }catch(e){}
+  try{ loggedIn = window.liff && typeof liff.isLoggedIn==="function" ? liff.isLoggedIn() : "n/a"; }catch(e){}
+  try{
+    const ctx = window.liff && typeof liff.getContext==="function" ? liff.getContext() : null;
+    contextType = ctx?.type ?? "(none)";
+    viewType = ctx?.viewType ?? "(none)";
+  }catch(e){}
+  try{
+    sendAvailable = window.liff && typeof liff.isApiAvailable==="function"
+      ? liff.isApiAvailable("sendMessages")
+      : "n/a";
+  }catch(e){}
+
+  const lines = [
+    "LIFF 診斷",
+    `isInClient：${inClient}`,
+    `isLoggedIn：${loggedIn}`,
+    `context.type：${contextType}`,
+    `context.viewType：${viewType}`,
+    `sendMessages available：${sendAvailable}`
+  ];
+  if(extra) lines.push(`error：${extra}`);
+  box.textContent = lines.join("\n");
+}
+
 async function initLiff(){
   try{
     if(!window.liff) throw new Error("LIFF_SDK_NOT_LOADED");
     await liff.init({ liffId: LIFF_ID });
     liffReady = true;
+    renderLiffDiag();
     console.log("LIFF ready", {
       inClient: liff.isInClient(),
       loggedIn: typeof liff.isLoggedIn === "function" ? liff.isLoggedIn() : null,
@@ -66,16 +110,9 @@ async function initLiff(){
   }catch(err){
     console.error("LIFF init failed", err);
     liffReady = false;
+    renderLiffDiag(err?.code || err?.message || "LIFF_INIT_FAILED");
     return false;
   }
-}
-
-function safeText(v){
-  return String(v ?? "")
-    .replace(/\u0000/g,"")
-    .replace(/\r\n/g,"\n")
-    .replace(/\r/g,"\n")
-    .trim();
 }
 
 function buildCompactOrderText(order,payload){
@@ -111,8 +148,6 @@ function buildCompactOrderText(order,payload){
     lines.push(`備註：${safeText(payload.remark)}`);
   }
 
-  // LINE text message max is much larger than a normal drink order,
-  // but we still keep the message compact and hard-cap it for safety.
   return lines.join("\n").slice(0, 4500);
 }
 
@@ -122,6 +157,7 @@ async function sendOrderToCurrentLineChat(order,payload){
 
   retry.classList.add("hidden");
   status.textContent = "正在把訂單回傳到 LINE 聊天室…";
+  renderLiffDiag();
 
   try{
     if(!liffReady){
@@ -138,25 +174,15 @@ async function sendOrderToCurrentLineChat(order,payload){
     }
 
     const orderText = buildCompactOrderText(order,payload);
+    if(!orderText) throw new Error("EMPTY_ORDER_TEXT");
 
-    if(!orderText){
-      throw new Error("EMPTY_ORDER_TEXT");
-    }
-
-    console.log("LINE send payload", {
-      length: orderText.length,
-      preview: orderText.slice(0,120)
-    });
-
-    // 只送一個最單純的純文字訊息，避免 INVALID_ARGUMENT。
-    await liff.sendMessages([
-      {
-        type: "text",
-        text: orderText
-      }
-    ]);
+    await liff.sendMessages([{
+      type:"text",
+      text:orderText
+    }]);
 
     status.textContent = "✅ 訂單已回傳到剛才的 LINE 官方帳號聊天室。";
+    renderLiffDiag("sendMessages success");
     retry.classList.add("hidden");
     return true;
 
@@ -166,8 +192,8 @@ async function sendOrderToCurrentLineChat(order,payload){
     const code = safeText(err?.code || err?.message || "UNKNOWN");
 
     status.textContent =
-      `⚠️ 訂單已建立，但 LINE 回傳失敗（${code}）。` +
-      `請從官方帳號聊天室內的 LIFF 點餐連結重新開啟後，再按「重新回傳 LINE」。`;
+      `⚠️ 訂單已建立，但 LINE 回傳失敗（${code}）。`;
+    renderLiffDiag(code);
 
     retry.classList.remove("hidden");
     return false;
