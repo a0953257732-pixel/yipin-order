@@ -54,22 +54,30 @@ let lastLineOrder = null;
 
 async function initLiff(){
   try{
+    if(!window.liff) throw new Error("LIFF_SDK_NOT_LOADED");
     await liff.init({ liffId: LIFF_ID });
     liffReady = true;
-    console.log("LIFF ready", {inClient:liff.isInClient(), context:liff.getContext?.()});
+    console.log("LIFF ready", {
+      inClient: liff.isInClient(),
+      context: typeof liff.getContext === "function" ? liff.getContext() : null
+    });
     return true;
   }catch(err){
     console.error("LIFF init failed", err);
+    liffReady = false;
     return false;
   }
 }
 
 function buildLineOrderText(order,payload){
   const itemLines=(payload.items||[]).map((x,i)=>{
-    const extras=(x.tops||[]).length ? `｜加料：${x.tops.map(t=>t.name).join("、")}` : "";
+    const extras=(x.tops||[]).length
+      ? `｜加料：${x.tops.map(t=>t.name).join("、")}`
+      : "";
     const itemPrice=Number(x.price||0)+(x.tops||[]).reduce((a,t)=>a+Number(t.p||0),0);
     return `${i+1}. ${x.name}｜${x.sweet}｜${x.ice}${extras}｜$${itemPrice}`;
   });
+
   return [
     "🧋 一品現泡茶｜新生南店｜訂單成立",
     `訂單編號：${order.id}`,
@@ -91,28 +99,44 @@ async function sendOrderToCurrentLineChat(order,payload){
   const retry=document.getElementById("retryLineBtn");
   retry.classList.add("hidden");
   status.textContent="正在把訂單回傳到 LINE 聊天室…";
+
   try{
-    if(!liffReady && !(await initLiff())) throw new Error("LIFF_INIT_FAILED");
-    if(!liff.isInClient()) throw new Error("NOT_IN_LINE_CLIENT");
-    if(typeof liff.isApiAvailable === "function" && !liff.isApiAvailable("sendMessages")) throw new Error("SEND_MESSAGES_UNAVAILABLE");
-    if(liff.permission?.query){
-      const permission=await liff.permission.query("chat_message.write");
-      if(permission?.state !== "granted") throw new Error("CHAT_MESSAGE_WRITE_NOT_GRANTED");
+    if(!liffReady){
+      const ok = await initLiff();
+      if(!ok) throw new Error("LIFF_INIT_FAILED");
     }
-    await liff.sendMessages([{type:"text",text:buildLineOrderText(order,payload)}]);
-    status.textContent="✅ 訂單已回傳到剛才開啟點餐的 LINE 聊天室。";
+
+    if(!liff.isInClient()){
+      throw new Error("NOT_IN_LINE_CLIENT");
+    }
+
+    if(typeof liff.isApiAvailable === "function" && !liff.isApiAvailable("sendMessages")){
+      throw new Error("SEND_MESSAGES_UNAVAILABLE");
+    }
+
+    await liff.sendMessages([{
+      type:"text",
+      text:buildLineOrderText(order,payload)
+    }]);
+
+    status.textContent="✅ 訂單已回傳到剛才的 LINE 官方帳號聊天室。";
+    retry.classList.add("hidden");
     return true;
   }catch(err){
     console.error("LINE order send failed",err);
     const code=err?.code || err?.message || "UNKNOWN";
-    status.textContent=`⚠️ 訂單已建立，但尚未回傳 LINE（${code}）。請從官方帳號聊天室內的 LIFF 點餐連結開啟後，再按「重新回傳 LINE」。`;
+    status.textContent=
+      `⚠️ 訂單已建立，但 LINE 回傳失敗（${code}）。` +
+      `請從官方帳號聊天室內的 LIFF 點餐連結開啟後，再按「重新回傳 LINE」。`;
     retry.classList.remove("hidden");
     return false;
   }
 }
 
 async function retryLineSend(){
-  if(lastLineOrder) await sendOrderToCurrentLineChat(lastLineOrder.order,lastLineOrder.payload);
+  if(lastLineOrder){
+    await sendOrderToCurrentLineChat(lastLineOrder.order,lastLineOrder.payload);
+  }
 }
 
 const MENU={"現泡茶": [["一品冰茶（金萱）", 40], ["阿薩姆紅茶", 35], ["錫蘭紅茶", 40], ["伯爵紅茶", 40], ["大吉嶺紅茶", 40], ["阿里山青茶", 40], ["茉莉綠茶", 40], ["烏龍綠茶", 40], ["油切綠茶", 40], ["鐵觀音茶", 40], ["東方美人茶", 40], ["普洱茶", 40], ["蕎麥茶", 45], ["桂花烏龍茶", 45], ["蜜桃烏龍茶", 45]], "奶茶": [["一品二奶", 60], ["金萱奶茶", 55], ["茉香奶綠", 55], ["錫蘭奶茶", 55], ["伯爵奶茶", 55], ["阿薩姆奶茶", 55], ["烏龍奶茶", 55], ["鐵觀音奶茶", 55], ["北海道奶茶", 55], ["京都抹茶奶", 65], ["蜂蜜奶茶", 65], ["沖繩黑糖奶茶", 65], ["阿華田", 55], ["可可亞", 55], ["杏仁奶茶", 55], ["黑豆玄米抹茶奶", 65]], "口感奶茶": [["珍珠奶茶", 55], ["珍珠奶綠", 55], ["珍珠黑糖奶茶", 65], ["椰果奶茶", 55], ["珍椰奶茶", 55], ["仙草凍奶茶", 55], ["杏仁凍奶綠", 60], ["統一布丁奶茶", 65]], "鮮奶（瑞穗鮮奶）": [["鮮奶茶", 65], ["鮮奶綠", 65], ["烏龍鮮奶茶", 65], ["鐵觀音鮮奶茶", 65], ["伯爵鮮奶茶", 65], ["抹茶鮮奶茶", 75], ["黑糖鮮奶茶", 75], ["珍珠黑糖鮮奶", 80], ["仙草黑糖鮮奶", 80]], "檸檬": [["檸檬汁", 55], ["檸檬話梅", 55], ["金桔檸檬", 60], ["檸檬梅汁", 60], ["蜂蜜檸檬", 65], ["脆梅檸檬汁", 65], ["峇里島水果茶", 60]], "特調": [["蜜茶", 45], ["仙草蜜茶", 55], ["蜂蜜蘆薈", 55], ["檸檬蘆薈", 55], ["冬瓜茶", 40], ["冬瓜青茶", 55], ["冬瓜鐵觀音", 55], ["冬瓜檸檬", 60], ["蜂蜜綠茶", 55], ["百香綠茶", 55], ["芒果綠茶", 55], ["梅果綠茶", 55], ["檸檬綠茶", 55], ["脆脆青梅綠", 65], ["百香QQ", 60]], "養樂多": [["多多綠", 65], ["百香多多", 60], ["芒果多多", 60], ["檸檬多多", 65]], "養生": [["桂圓紅棗茶", 55], ["黑糖薑母茶", 55], ["韓式柚子茶", 60]], "無咖啡因茶": [["牛蒡茶", 45], ["南非國寶茶", 50], ["紅棗枸杞茶", 45], ["蔓越莓蘋果", 45]]}, TOPS=[["珍珠", 10], ["椰果", 10], ["蘆薈", 10], ["仙草凍", 10], ["綠茶凍", 15], ["杏仁凍", 15], ["統一布丁", 15], ["奶茶", 15], ["鮮奶", 25]], SWEET=["正常糖 80%", "少糖 70%", "半糖 50%", "微糖 30%", "點糖 10%", "無糖 0%"], ICE=["正常冰", "少冰", "微冰", "去冰", "常溫", "溫", "熱"];
@@ -144,5 +168,9 @@ async function returnToLine(){
   alert('訂單已完成。若目前不是在 LINE App 內開啟，請回到官方 LINE。');
 }
 
-initLiff();
+if(document.readyState === "loading"){
+  document.addEventListener("DOMContentLoaded", initLiff);
+}else{
+  initLiff();
+}
 </script></body></html>
