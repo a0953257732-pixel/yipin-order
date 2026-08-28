@@ -1,0 +1,10 @@
+{
+  "name": "一品接單｜新生南店",
+  "short_name": "一品接單",
+  "start_url": "/admin.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f3f5f3",
+  "theme_color": "#07502f",
+  "description": "一品現泡茶新生南店手機接單後台"
+}

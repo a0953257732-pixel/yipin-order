@@ -1,43 +1,368 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>一品現泡茶｜店家後台</title><style>
-body{margin:0;background:#f3f5f3;color:#263328;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Microsoft JhengHei",Arial,sans-serif}
-header{background:#07502f;color:#fff;padding:18px 20px;display:flex;justify-content:space-between;align-items:center}main{max-width:1200px;margin:auto;padding:18px}.login{background:#fff;padding:20px;border-radius:16px;max-width:420px;margin:60px auto}.login input{width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:10px;box-sizing:border-box}.login button{width:100%;padding:12px;background:#07502f;color:#fff;border:0;border-radius:10px;font-weight:800}
-.board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.col{background:#e9ece9;border-radius:16px;padding:12px;min-height:400px}.col h2{font-size:16px}.card{background:#fff;border-radius:13px;padding:14px;margin:9px 0;box-shadow:0 2px 10px #0001}.id{font-weight:900;color:#07502f}.small{font-size:13px;color:#666;margin-top:4px}.items{font-size:13px;line-height:1.55;margin-top:10px}.money{text-align:right;font-size:18px;font-weight:900;margin-top:8px}.actions{display:flex;gap:6px;margin-top:10px}.actions button{border:0;border-radius:9px;padding:8px 10px;font-weight:800}.accept{background:#07502f;color:#fff}.making{background:#c98b1b;color:#fff}.done{background:#4d6f52;color:#fff}.cancel{background:#eee}.empty{color:#888;text-align:center;padding:30px 5px}@media(max-width:900px){.board{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.board{grid-template-columns:1fr}}
-
-/* ===== 後台手機版優化 ===== */
-*{box-sizing:border-box}
-html,body{max-width:100%;overflow-x:hidden}
-header{position:sticky;top:0;z-index:20;gap:8px}
-.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
-.refresh{border:0;border-radius:9px;padding:9px 12px;background:#fff;color:#07502f;font-weight:800}
-@media(max-width:560px){
-  header{padding:13px 12px;font-size:14px}
-  main{padding:10px}
-  .login{margin:30px auto;padding:16px}
-  .board{grid-template-columns:1fr;gap:10px}
-  .col{min-height:0;padding:10px;border-radius:12px}
-  .col h2{position:sticky;top:48px;background:#e9ece9;padding:8px 2px;margin:0 0 6px;z-index:4}
-  .card{padding:12px;border-radius:10px}
-  .actions{display:grid;grid-template-columns:1fr 1fr}
-  .actions button{min-height:42px}
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07502f">
+<link rel="manifest" href="/manifest.json">
+<title>一品接單｜新生南店</title>
+<style>
+:root{
+  --green:#07502f;--green2:#0b6a40;--cream:#f6f4ed;--paper:#fff;--ink:#243029;
+  --muted:#6d756f;--line:#e5e8e5;--orange:#cc8b1e;--red:#b84343;--shadow:0 8px 24px rgba(0,0,0,.08)
 }
+*{box-sizing:border-box}
+html,body{margin:0;max-width:100%;overflow-x:hidden;background:#f3f5f3;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Microsoft JhengHei",Arial,sans-serif}
+button,input{font:inherit}
+body{padding-bottom:env(safe-area-inset-bottom)}
+header{
+  position:sticky;top:0;z-index:50;background:var(--green);color:#fff;
+  padding:12px 14px calc(12px + env(safe-area-inset-top));box-shadow:0 2px 10px #0002
+}
+.topline{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{font-weight:950;font-size:17px;letter-spacing:.5px}
+.header-actions{display:flex;align-items:center;gap:8px}
+.iconbtn{border:0;background:#ffffff18;color:#fff;border-radius:11px;padding:9px 11px;font-weight:900}
+main{max-width:760px;margin:auto;padding:10px 10px 28px}
+.login{background:#fff;padding:20px;border-radius:18px;max-width:420px;margin:45px auto;box-shadow:var(--shadow)}
+.login h2{margin:0 0 12px}
+.login input{width:100%;padding:14px;margin:8px 0;border:1px solid #dfe4df;border-radius:12px}
+.login button{width:100%;padding:14px;background:var(--green);color:#fff;border:0;border-radius:12px;font-weight:950;margin-top:6px}
+.hidden{display:none!important}
 
-</style></head><body>
-<header><b>一品現泡茶｜新生南店 店家後台</b><span id="bell">🔕</span></header><main><div id="login" class="login"><h2>店家登入</h2><input id="pin" type="password" placeholder="請輸入後台 PIN"><button onclick="login()">登入</button></div>
-<div id="app" style="display:none"><div class="toolbar"><button class="refresh" onclick="load()">↻ 重新整理訂單</button><span class="small">狀態每 3 秒自動同步</span></div><div class="board"><div class="col"><h2>🔔 新訂單 <span id="cnew">0</span></h2><div id="new"></div></div><div class="col"><h2>👋 已接單 <span id="caccepted">0</span></h2><div id="accepted"></div></div><div class="col"><h2>🥤 製作中 <span id="cmaking">0</span></h2><div id="making"></div></div><div class="col"><h2>✅ 已完成 <span id="cdone">0</span></h2><div id="done"></div></div></div></div></main>
+.summary{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0
+}
+.sum-card{background:#fff;border-radius:14px;padding:10px 8px;text-align:center;box-shadow:var(--shadow)}
+.sum-card b{display:block;font-size:20px;color:var(--green)}
+.sum-card span{font-size:11px;color:var(--muted);font-weight:800}
+
+.tabs{
+  position:sticky;top:61px;z-index:40;display:grid;grid-template-columns:repeat(4,1fr);
+  background:#f3f5f3;padding:8px 0 9px;gap:6px
+}
+.tab{
+  border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 4px;
+  font-size:12px;font-weight:900;color:#59635c
+}
+.tab.active{background:var(--green);color:#fff;border-color:var(--green)}
+.badge{
+  display:inline-flex;min-width:20px;height:20px;padding:0 6px;align-items:center;justify-content:center;
+  border-radius:999px;background:#eee;color:#555;margin-left:3px;font-size:11px
+}
+.tab.active .badge{background:#fff2;color:#fff}
+
+.section-title{font-size:13px;color:var(--muted);font-weight:900;margin:6px 2px 8px}
+.order-list{display:grid;gap:10px}
+.card{
+  background:#fff;border-radius:16px;padding:14px;box-shadow:var(--shadow);border:1px solid #edf0ed
+}
+.card.new{border-left:5px solid var(--red)}
+.card.accepted{border-left:5px solid var(--green2)}
+.card.making{border-left:5px solid var(--orange)}
+.card.done{opacity:.9}
+.headrow{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.order-id{font-weight:950;color:var(--green);font-size:15px}
+.timebig{font-weight:950;font-size:20px;white-space:nowrap}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900;background:#eef2ef}
+.pill.pay{background:#eaf6ee;color:#116134}
+.pill.cash{background:#fff5df;color:#94620a}
+.pill.delivery{background:#fff0e8;color:#a14e18}
+.pill.pickup{background:#edf3ff;color:#355b8b}
+.customer{margin-top:10px;font-size:14px;line-height:1.7}
+.customer a{text-decoration:none;color:var(--green);font-weight:900}
+.addressbox{margin-top:8px;padding:10px;border-radius:10px;background:#faf7ef;font-size:13px;line-height:1.5}
+.items{margin-top:11px;border-top:1px dashed #dfe3df}
+.item{padding:10px 0;border-bottom:1px dashed #edf0ed}
+.item b{font-size:14px}
+.sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.55}
+.footerrow{display:flex;justify-content:space-between;align-items:end;gap:8px;margin-top:12px}
+.total{font-size:22px;font-weight:950;color:var(--green)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.actions.one{grid-template-columns:1fr}
+.actions button{border:0;border-radius:12px;min-height:48px;padding:12px;font-weight:950}
+.accept{background:var(--green);color:#fff}
+.making{background:var(--orange);color:#fff}
+.done{background:#4d6f52;color:#fff}
+.cancel{background:#f1f1f1;color:#555}
+.copy{background:#eef3ef;color:var(--green)}
+.empty{background:#fff;border-radius:14px;padding:34px 10px;text-align:center;color:#888}
+.statusline{font-size:11px;color:#dfeee5}
+.install-tip{
+  margin:10px 0;background:#eef5ef;border:1px solid #dce7de;color:#3d5f4b;border-radius:12px;
+  padding:10px 12px;font-size:12px;line-height:1.5
+}
+@media(min-width:700px){
+  main{max-width:1100px}
+  .order-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tabs{top:61px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="topline">
+    <div>
+      <div class="brand">一品接單｜新生南店</div>
+      <div class="statusline" id="syncText">等待登入</div>
+    </div>
+    <div class="header-actions">
+      <button class="iconbtn" onclick="load()">↻</button>
+      <button class="iconbtn" id="logoutBtn" onclick="logout()" style="display:none">登出</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="login" class="login">
+    <h2>店家登入</h2>
+    <input id="pin" type="password" inputmode="numeric" placeholder="請輸入後台 PIN">
+    <button onclick="login()">登入</button>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="install-tip">
+      📱 可加入手機主畫面：iPhone Safari → 分享 →「加入主畫面」；Android Chrome → 選單 →「加到主畫面 / 安裝應用程式」。
+    </div>
+
+    <div class="summary">
+      <div class="sum-card"><b id="sumNew">0</b><span>新訂單</span></div>
+      <div class="sum-card"><b id="sumMaking">0</b><span>處理中</span></div>
+      <div class="sum-card"><b id="sumToday">0</b><span>今日訂單</span></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-status="new" onclick="switchTab('new',this)">新單 <span class="badge" id="bnew">0</span></button>
+      <button class="tab" data-status="accepted" onclick="switchTab('accepted',this)">已接 <span class="badge" id="baccepted">0</span></button>
+      <button class="tab" data-status="making" onclick="switchTab('making',this)">製作 <span class="badge" id="bmaking">0</span></button>
+      <button class="tab" data-status="done" onclick="switchTab('done',this)">完成 <span class="badge" id="bdone">0</span></button>
+    </div>
+
+    <div class="section-title" id="sectionTitle">🔔 新訂單</div>
+    <div id="list" class="order-list"></div>
+  </div>
+</main>
+
 <script src="/socket.io/socket.io.js"></script>
 <script>
 let logged=false;
-async function login(){const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:document.getElementById('pin').value})});const x=await r.json();if(!x.ok)return alert('PIN 錯誤');logged=true;document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';load()}
-async function load(){if(!logged)return;const r=await fetch('/api/admin/orders');render(await r.json())}
-function render(all){['new','accepted','making','done'].forEach(s=>{let a=all.filter(o=>o.status===s);document.getElementById(s).innerHTML=a.length?a.map(card).join(''):'<div class="empty">目前沒有訂單</div>';document.getElementById('c'+s).textContent=a.length})}
-function card(o){let items=o.items.map(x=>'<div class="items"><b>'+x.name+'</b> × 1<br>'+x.sweet+'｜'+x.ice+(x.tops?.length?'｜加料：'+x.tops.map(t=>t.name).join('、'):'')+'</div>').join('');let b='';if(o.status==='new')b='<button class="accept" onclick="move(\''+o.id+'\',\'accepted\')">接單</button><button class="cancel" onclick="move(\''+o.id+'\',\'cancelled\')">取消</button>';if(o.status==='accepted')b='<button class="making" onclick="move(\''+o.id+'\',\'making\')">開始製作</button>';if(o.status==='making')b='<button class="done" onclick="move(\''+o.id+'\',\'done\')">已完成</button>';const delivery=o.method==='外送';return '<div class="card"><div class="id">'+o.id+'｜'+(delivery?'🛵 外送':'🏪 自取')+'</div><div class="small">'+(delivery?'送達':'取餐')+'：'+new Date(o.pickup).toLocaleString('zh-TW')+'</div><div class="small">'+o.name+'｜'+o.phone+'</div>'+(delivery?'<div class="small"><b>地址：</b>'+((o.address||'未填'))+'</div>':'')+(o.remark?'<div class="small"><b>備註：</b>'+o.remark+'</div>':'')+items+'<div class="money">$'+o.total+'</div><div class="actions">'+b+'</div></div>'}
+let allOrders=[];
+let currentTab='new';
+let audioCtx=null;
 
-async function move(id,status){await fetch('/api/admin/orders/'+id+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});load()}
-if (typeof io === 'function') {
- const socket=io();
- socket.on('new-order',o=>{document.getElementById('bell').textContent='🔔 新訂單';if(logged)load();});
- socket.on('order-updated',()=>{if(logged)load()});
+const SESSION_KEY='yipin_admin_logged_v1';
+
+function escapeHtml(v){
+  return String(v??'').replace(/[&<>"']/g,s=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+  }[s]));
 }
-setInterval(load,3000);
-</script></body></html>
+function fmtTime(v){
+  const d=new Date(v);
+  if(Number.isNaN(d.getTime())) return String(v||'');
+  return d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false});
+}
+function fmtDateTime(v){
+  const d=new Date(v);
+  if(Number.isNaN(d.getTime())) return String(v||'');
+  return d.toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+}
+function isToday(v){
+  const d=new Date(v); const n=new Date();
+  return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate();
+}
+function paymentLabel(o){
+  if(o.paymentMethod==='LINE Pay' && o.paymentStatus==='paid') return '<span class="pill pay">✅ LINE Pay 已付款</span>';
+  if(o.paymentMethod==='LINE Pay') return '<span class="pill cash">⚠️ LINE Pay</span>';
+  return '<span class="pill cash">🏪 現場付款</span>';
+}
+function fulfillmentLabel(o){
+  return o.method==='外送'
+    ? '<span class="pill delivery">🛵 外送</span>'
+    : '<span class="pill pickup">🏪 自取</span>';
+}
+
+async function login(){
+  const pin=document.getElementById('pin').value.trim();
+  const r=await fetch('/api/admin/login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({pin})
+  });
+  const x=await r.json().catch(()=>({}));
+  if(!x.ok) return alert('PIN 錯誤');
+
+  logged=true;
+  sessionStorage.setItem(SESSION_KEY,'1');
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('logoutBtn').style.display='';
+  document.getElementById('syncText').textContent='已登入｜即時同步中';
+  enableAudio();
+  load();
+}
+
+function logout(){
+  sessionStorage.removeItem(SESSION_KEY);
+  location.reload();
+}
+
+async function load(){
+  if(!logged)return;
+  try{
+    const r=await fetch('/api/admin/orders',{cache:'no-store'});
+    allOrders=await r.json();
+    render();
+    document.getElementById('syncText').textContent='已同步｜'+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){
+    document.getElementById('syncText').textContent='同步失敗';
+  }
+}
+
+function switchTab(status,btn){
+  currentTab=status;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function render(){
+  const counts={new:0,accepted:0,making:0,done:0};
+  allOrders.forEach(o=>{if(counts[o.status]!==undefined)counts[o.status]++});
+
+  Object.keys(counts).forEach(s=>{
+    const el=document.getElementById('b'+s);
+    if(el)el.textContent=counts[s];
+  });
+  document.getElementById('sumNew').textContent=counts.new;
+  document.getElementById('sumMaking').textContent=counts.accepted+counts.making;
+  document.getElementById('sumToday').textContent=allOrders.filter(o=>isToday(o.createdAt)).length;
+
+  const titleMap={new:'🔔 新訂單',accepted:'👋 已接單',making:'🥤 製作中',done:'✅ 已完成'};
+  document.getElementById('sectionTitle').textContent=titleMap[currentTab];
+
+  let rows=allOrders.filter(o=>o.status===currentTab);
+  if(currentTab==='done') rows=rows.slice(0,30);
+
+  const list=document.getElementById('list');
+  list.innerHTML=rows.length?rows.map(card).join(''):'<div class="empty">目前沒有訂單</div>';
+}
+
+function card(o){
+  const items=(o.items||[]).map(x=>{
+    const tops=(x.tops||[]).length?'｜加料：'+(x.tops||[]).map(t=>escapeHtml(t.name)).join('、'):'';
+    return '<div class="item"><b>'+escapeHtml(x.name)+'</b><div class="sub">'+escapeHtml(x.sweet||'')+'｜'+escapeHtml(x.ice||'')+tops+'</div></div>';
+  }).join('');
+
+  let actionHtml='';
+  if(o.status==='new'){
+    actionHtml='<div class="actions"><button class="accept" onclick="moveOrder(\''+o.id+'\',\'accepted\')">✅ 接單</button><button class="cancel" onclick="moveOrder(\''+o.id+'\',\'cancelled\')">取消</button></div>';
+  }else if(o.status==='accepted'){
+    actionHtml='<div class="actions one"><button class="making" onclick="moveOrder(\''+o.id+'\',\'making\')">🥤 開始製作</button></div>';
+  }else if(o.status==='making'){
+    actionHtml='<div class="actions one"><button class="done" onclick="moveOrder(\''+o.id+'\',\'done\')">✅ 完成</button></div>';
+  }
+
+  const phone=escapeHtml(o.phone||'');
+  const delivery=o.method==='外送';
+  const address=escapeHtml(o.address||'');
+
+  return '<div class="card '+escapeHtml(o.status)+'">'+
+    '<div class="headrow">'+
+      '<div><div class="order-id">'+escapeHtml(o.id)+'</div><div class="small">'+fmtDateTime(o.createdAt)+'</div></div>'+
+      '<div class="timebig">'+fmtTime(o.pickup)+'</div>'+
+    '</div>'+
+    '<div class="meta">'+fulfillmentLabel(o)+paymentLabel(o)+'</div>'+
+    '<div class="customer"><b>'+escapeHtml(o.name)+'</b>｜<a href="tel:'+phone+'">📞 '+phone+'</a></div>'+
+    (delivery?'<div class="addressbox"><b>地址：</b>'+address+'<div class="actions one"><button class="copy" onclick="copyAddress(\''+encodeURIComponent(o.address||'')+'\')">📋 複製地址</button></div></div>':'')+
+    (o.remark?'<div class="addressbox"><b>備註：</b>'+escapeHtml(o.remark)+'</div>':'')+
+    '<div class="items">'+items+'</div>'+
+    '<div class="footerrow"><div><div class="small">'+((o.items||[]).length)+' 杯</div></div><div class="total">$'+Number(o.total||0)+'</div></div>'+
+    actionHtml+
+  '</div>';
+}
+
+async function moveOrder(id,status){
+  try{
+    const r=await fetch('/api/admin/orders/'+encodeURIComponent(id)+'/status',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({status})
+    });
+    if(!r.ok){
+      const e=await r.json().catch(()=>({}));
+      throw new Error(e.error||'更新失敗');
+    }
+    await load();
+    if(status==='accepted') switchTab('accepted',document.querySelector('.tab[data-status="accepted"]'));
+    if(status==='making') switchTab('making',document.querySelector('.tab[data-status="making"]'));
+    if(status==='done') switchTab('done',document.querySelector('.tab[data-status="done"]'));
+  }catch(e){
+    alert(e.message||'更新失敗');
+  }
+}
+
+async function copyAddress(encoded){
+  const text=decodeURIComponent(encoded);
+  try{
+    await navigator.clipboard.writeText(text);
+    alert('地址已複製');
+  }catch(e){
+    prompt('請複製地址',text);
+  }
+}
+
+function enableAudio(){
+  try{
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+  }catch(e){}
+}
+function beep(){
+  try{
+    if(!audioCtx) return;
+    const osc=audioCtx.createOscillator();
+    const gain=audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.frequency.value=880;
+    gain.gain.setValueAtTime(.08,audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.25);
+    osc.start(); osc.stop(audioCtx.currentTime+.25);
+    if(navigator.vibrate) navigator.vibrate([120,70,120]);
+  }catch(e){}
+}
+
+if(typeof io==='function'){
+  const socket=io();
+  socket.on('new-order',o=>{
+    beep();
+    if(logged){
+      currentTab='new';
+      document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.status==='new'));
+      load();
+    }
+  });
+  socket.on('order-updated',()=>{if(logged)load()});
+}
+
+setInterval(load,5000);
+
+document.addEventListener('DOMContentLoaded',()=>{
+  if(sessionStorage.getItem(SESSION_KEY)==='1'){
+    logged=true;
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('logoutBtn').style.display='';
+    document.getElementById('syncText').textContent='已登入｜即時同步中';
+    load();
+  }
+});
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
