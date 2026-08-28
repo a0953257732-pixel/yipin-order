@@ -17,6 +17,9 @@ const SHARED_DB = path.join(DATA_DIR, "shared-carts.json");
 const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "";
 const LINE_NOTIFY_TARGET = process.env.LINE_NOTIFY_TARGET || "";
+const LINE_LOGIN_CHANNEL_ID = process.env.LINE_LOGIN_CHANNEL_ID || "2011256472";
+const LINE_PENDING_MESSAGES = new Map();
+const LINE_PENDING_TTL_MS = 10 * 60 * 1000;
 const LINE_SEND_TOKENS = new Map();
 const LINE_SEND_TOKEN_TTL_MS = 10 * 60 * 1000;
 
@@ -43,6 +46,31 @@ function sanitizeSharedItem(item){
   return x.name&&Number.isFinite(x.price)&&x.price>=0?x:null;
 }
 function sanitizeSharedCart(cart){return Array.isArray(cart)?cart.slice(0,100).map(sanitizeSharedItem).filter(Boolean):[]}
+
+async function verifyLineIdToken(idToken){
+  if(!idToken) return null;
+  const body=new URLSearchParams({id_token:String(idToken),client_id:LINE_LOGIN_CHANNEL_ID});
+  const r=await fetch("https://api.line.me/oauth2/v2.1/verify",{
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body
+  });
+  if(!r.ok){
+    console.error("LINE ID token verify failed:",r.status,await r.text());
+    return null;
+  }
+  const data=await r.json();
+  return data?.sub ? String(data.sub) : null;
+}
+
+function cleanupPendingLineMessages(){
+  const now=Date.now();
+  for(const [userId,data] of LINE_PENDING_MESSAGES.entries()){
+    if(!data || now-Number(data.createdAt||0)>LINE_PENDING_TTL_MS){
+      LINE_PENDING_MESSAGES.delete(userId);
+    }
+  }
+}
 
 function verifyLineSignature(req){
   if(!LINE_CHANNEL_SECRET) return false;
@@ -85,36 +113,25 @@ app.post("/webhook",async(req,res)=>{
 });
 
 
-function cleanupLineSendTokens(){
-  const now=Date.now();
-  for(const [token,data] of LINE_SEND_TOKENS.entries()){
-    if(!data || now-Number(data.createdAt||0)>LINE_SEND_TOKEN_TTL_MS){
-      LINE_SEND_TOKENS.delete(token);
-    }
-  }
-}
-
-app.post("/api/line-send-token",(req,res)=>{
-  cleanupLineSendTokens();
+app.post("/api/line-send-pending",async(req,res)=>{
+  cleanupPendingLineMessages();
   const text=String(req.body?.text||"").trim();
+  const userId=await verifyLineIdToken(req.body?.idToken);
+  if(!userId) return res.status(401).json({error:"無法確認 LINE 使用者，請從 LINE 重新開啟點餐頁"});
   if(!text) return res.status(400).json({error:"缺少訂單文字"});
   if(text.length>4500) return res.status(400).json({error:"訂單文字過長"});
-  const token=crypto.randomBytes(16).toString("hex");
-  LINE_SEND_TOKENS.set(token,{text,createdAt:Date.now()});
-  res.json({ok:true,token});
-});
-
-app.get("/api/line-send-token/:token",(req,res)=>{
-  cleanupLineSendTokens();
-  const token=String(req.params.token||"");
-  const data=LINE_SEND_TOKENS.get(token);
-  if(!data) return res.status(404).json({error:"訂單回傳識別碼已失效，請回點餐頁重新送出"});
-  res.json({ok:true,text:data.text});
-});
-
-app.delete("/api/line-send-token/:token",(req,res)=>{
-  LINE_SEND_TOKENS.delete(String(req.params.token||""));
+  LINE_PENDING_MESSAGES.set(userId,{text,createdAt:Date.now()});
   res.json({ok:true});
+});
+
+app.post("/api/line-send-pending/take",async(req,res)=>{
+  cleanupPendingLineMessages();
+  const userId=await verifyLineIdToken(req.body?.idToken);
+  if(!userId) return res.status(401).json({error:"無法確認 LINE 使用者"});
+  const data=LINE_PENDING_MESSAGES.get(userId);
+  if(!data) return res.status(404).json({error:"找不到待回傳訂單，請回點餐頁重新送出"});
+  LINE_PENDING_MESSAGES.delete(userId);
+  res.json({ok:true,text:data.text});
 });
 
 app.post("/api/shared-carts",(req,res)=>{
