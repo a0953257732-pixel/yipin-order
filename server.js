@@ -12,13 +12,25 @@ const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 const ADMIN_PIN = process.env.ADMIN_PIN || "30242";
 const DB = path.join(__dirname, "data", "orders.json");
+const SHARED_CARTS_DB = path.join(__dirname, "data", "shared-carts.json");
 
 // LINE Pay Online API v4
 const LINEPAY_CHANNEL_ID = process.env.LINEPAY_CHANNEL_ID || "";
 const LINEPAY_CHANNEL_SECRET = process.env.LINEPAY_CHANNEL_SECRET || "";
 const LINEPAY_API_BASE = process.env.LINEPAY_API_BASE || "https://api-pay.line.me";
 
-app.use(express.json({ limit: "1mb" }));
+// LINE Messaging API（用於店家收到新訂單通知）
+const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
+const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "";
+const LINE_NOTIFY_TARGET = process.env.LINE_NOTIFY_TARGET || "";
+const LINE_LOGIN_CHANNEL_ID = process.env.LINE_LOGIN_CHANNEL_ID || "2011256472";
+
+app.use(express.json({
+  limit: "1mb",
+  verify: (req, res, buf) => {
+    req.rawBody = Buffer.from(buf);
+  }
+}));
 app.use(express.static(path.join(__dirname, "public")));
 
 function readOrders() {
@@ -35,8 +47,158 @@ function writeOrders(orders) {
   fs.writeFileSync(DB, JSON.stringify(orders, null, 2), "utf8");
 }
 
+function readSharedCarts() {
+  try { return JSON.parse(fs.readFileSync(SHARED_CARTS_DB, "utf8")); }
+  catch (e) { return {}; }
+}
+
+function writeSharedCarts(data) {
+  const dir = path.dirname(SHARED_CARTS_DB);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(SHARED_CARTS_DB, JSON.stringify(data, null, 2), "utf8");
+}
+
+function sharedCartId() {
+  return crypto.randomBytes(6).toString("base64url");
+}
+
+function sanitizeSharedCart(cart) {
+  if (!Array.isArray(cart) || !cart.length || cart.length > 100) return null;
+  return cart.map(x => ({
+    name: String(x?.name || "").slice(0, 80),
+    price: Number(x?.price || 0),
+    sweet: String(x?.sweet || "").slice(0, 30),
+    ice: String(x?.ice || "").slice(0, 30),
+    tops: Array.isArray(x?.tops) ? x.tops.slice(0, 20).map(t => ({
+      name: String(t?.name || "").slice(0, 40),
+      p: Number(t?.p || 0)
+    })) : []
+  })).filter(x => x.name && Number.isFinite(x.price) && x.price >= 0);
+}
+
 function id() {
   return "YP" + crypto.randomBytes(4).toString("hex").toUpperCase();
+}
+
+function verifyLineSignature(req) {
+  if (!LINE_CHANNEL_SECRET) return false;
+  const signature = req.get("x-line-signature") || "";
+  const expected = crypto
+    .createHmac("sha256", LINE_CHANNEL_SECRET)
+    .update(req.rawBody || Buffer.from(""))
+    .digest("base64");
+  try {
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
+async function lineApi(pathname, payload) {
+  if (!LINE_CHANNEL_ACCESS_TOKEN) throw new Error("LINE_CHANNEL_ACCESS_TOKEN 尚未設定");
+  const r = await fetch(`https://api.line.me${pathname}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(20000)
+  });
+  if (!r.ok) throw new Error(`LINE API ${r.status}: ${await r.text()}`);
+}
+
+async function replyLine(replyToken, text) {
+  if (!replyToken) return;
+  await lineApi("/v2/bot/message/reply", {
+    replyToken,
+    messages: [{ type: "text", text }]
+  });
+}
+
+async function pushLine(to, text) {
+  if (!to) return;
+  await lineApi("/v2/bot/message/push", {
+    to,
+    messages: [{ type: "text", text }]
+  });
+}
+
+function formatOrderForStore(order) {
+  const lines = [
+    "🔔 一品現泡茶｜新訂單",
+    `訂單編號：${order.id}`,
+    `取餐方式：${order.method === "外送" ? "外送" : "門市自取"}`,
+    `${order.method === "外送" ? "外送時間" : "自取時間"}：${String(order.pickup || "").includes("T") ? String(order.pickup).split("T")[1].slice(0,5) : order.pickup}`,
+    `付款方式：${order.paymentMethod || "現場付款"}${order.paymentStatus === "paid" ? "（已付款）" : ""}`,
+    `姓名：${order.name}`,
+    `電話：${order.phone}`
+  ];
+
+  if (order.method === "外送") lines.push(`地址：${order.address || "-"}`);
+  lines.push("");
+
+  (order.items || []).forEach((x, i) => {
+    const toppings = (x.tops || []).length ? `｜加料：${x.tops.map(t => t.name).join("、")}` : "";
+    const price = Number(x.price || 0) + (x.tops || []).reduce((s,t)=>s+Number(t.p||0),0);
+    lines.push(`${i+1}. ${x.name}｜${x.sweet}｜${x.ice}${toppings}｜$${price}`);
+  });
+
+  lines.push("", `💰 總金額：$${order.total}`);
+  if (order.remark) lines.push(`備註：${order.remark}`);
+  return lines.join("\n").slice(0, 4500);
+}
+
+function notifyStore(order) {
+  if (!LINE_NOTIFY_TARGET || !LINE_CHANNEL_ACCESS_TOKEN) {
+    console.log("Store LINE notification skipped: LINE_NOTIFY_TARGET or token missing");
+    return;
+  }
+  pushLine(LINE_NOTIFY_TARGET, formatOrderForStore(order))
+    .catch(err => console.error("Store LINE notification failed:", err.message));
+}
+
+
+async function verifyLineIdToken(idToken) {
+  if (!idToken) return null;
+
+  const body = new URLSearchParams({
+    id_token: String(idToken),
+    client_id: LINE_LOGIN_CHANNEL_ID
+  });
+
+  const r = await fetch("https://api.line.me/oauth2/v2.1/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+    signal: AbortSignal.timeout(15000)
+  });
+
+  if (!r.ok) {
+    console.error("LINE ID token verify failed:", r.status, await r.text());
+    return null;
+  }
+
+  const data = await r.json();
+  return data && data.sub ? String(data.sub) : null;
+}
+
+function notifyCustomerChat(order) {
+  if (!order.lineUserId || !LINE_CHANNEL_ACCESS_TOKEN) {
+    console.log("Customer chat notification skipped: no lineUserId/token");
+    return;
+  }
+
+  const text = [
+    "🧋 一品現泡茶｜訂單成立",
+    "",
+    formatOrderForStore(order).replace("🔔 一品現泡茶｜新訂單\n", ""),
+    "",
+    "如需修改訂單，請直接在這個聊天室聯絡店家。"
+  ].join("\n").slice(0, 4500);
+
+  pushLine(order.lineUserId, text)
+    .catch(err => console.error("Customer LINE chat push failed:", err.message));
 }
 
 function baseUrl(req) {
@@ -72,6 +234,7 @@ function normalizeOrderInput(o = {}) {
       status: paymentMethod === "LINE Pay" ? "payment_pending" : "new",
       paymentMethod,
       paymentStatus: paymentMethod === "LINE Pay" ? "pending" : "unpaid",
+      lineUserId: String(o.lineUserId || "").slice(0, 80),
       name: String(o.name).slice(0, 40),
       phone: String(o.phone).slice(0, 30),
       pickup: String(o.pickup).slice(0, 40),
@@ -142,25 +305,83 @@ function linePayProducts(order) {
   });
 }
 
+
+// LINE Official Account webhook。
+// 對官方帳號傳「取得通知ID」可取得店家通知目標 ID。
+app.post("/webhook", async (req, res) => {
+  if (!verifyLineSignature(req)) return res.status(401).send("Invalid signature");
+  res.sendStatus(200);
+
+  const events = Array.isArray(req.body?.events) ? req.body.events : [];
+  for (const event of events) {
+    try {
+      const source = event.source || {};
+      const sourceId = source.userId || source.groupId || source.roomId || "";
+      const text = event.message?.type === "text" ? String(event.message.text || "").trim() : "";
+
+      if (event.type === "message" && text === "取得通知ID" && sourceId) {
+        await replyLine(event.replyToken, `店家通知 ID：\n${sourceId}\n\n請把這串填到 Render 的 LINE_NOTIFY_TARGET。`);
+      } else if (event.type === "message" && text === "測試店家通知") {
+        await replyLine(event.replyToken, "✅ LINE Webhook 已連線成功。");
+      }
+    } catch (err) {
+      console.error("LINE webhook error:", err.message);
+    }
+  }
+});
+
+// 分享購物車：建立短連結，讓朋友接著點餐。
+app.post("/api/shared-carts", (req, res) => {
+  const cart = sanitizeSharedCart(req.body?.cart);
+  if (!cart || !cart.length) return res.status(400).json({ error: "購物車是空的或資料格式錯誤" });
+
+  const store = readSharedCarts();
+  const now = Date.now();
+  // 清除超過 7 天的分享資料。
+  for (const [key, value] of Object.entries(store)) {
+    if (!value?.createdAt || now - Number(value.createdAt) > 7 * 24 * 60 * 60 * 1000) delete store[key];
+  }
+  const shareId = sharedCartId();
+  store[shareId] = { cart, createdAt: now };
+  writeSharedCarts(store);
+  res.json({ ok: true, shareId, url: `${baseUrl(req)}/?share=${encodeURIComponent(shareId)}` });
+});
+
+app.get("/api/shared-carts/:id", (req, res) => {
+  const store = readSharedCarts();
+  const shared = store[String(req.params.id || "")];
+  if (!shared) return res.status(404).json({ error: "找不到分享購物車，可能已失效" });
+  if (Date.now() - Number(shared.createdAt || 0) > 7 * 24 * 60 * 60 * 1000) {
+    delete store[String(req.params.id || "")];
+    writeSharedCarts(store);
+    return res.status(410).json({ error: "分享購物車已超過 7 天失效" });
+  }
+  res.json({ cart: shared.cart, createdAt: shared.createdAt });
+});
+
 app.get("/api/health", (req, res) => {
   res.json({
     ok: true,
     service: "yipin-order",
-    linePayConfigured: Boolean(LINEPAY_CHANNEL_ID && LINEPAY_CHANNEL_SECRET)
+    linePayConfigured: Boolean(LINEPAY_CHANNEL_ID && LINEPAY_CHANNEL_SECRET),
+    lineNotifyConfigured: Boolean(LINE_CHANNEL_ACCESS_TOKEN && LINE_CHANNEL_SECRET && LINE_NOTIFY_TARGET)
   });
 });
 
 // 現場付款：直接建立訂單
-app.post("/api/orders", (req, res) => {
+app.post("/api/orders", async (req, res) => {
   const parsed = normalizeOrderInput({ ...req.body, paymentMethod: "現場付款" });
   if (parsed.error) return res.status(400).json({ error: parsed.error });
 
   const order = parsed.value;
+  order.lineUserId = await verifyLineIdToken(req.body?.lineIdToken) || "";
   const orders = readOrders();
   orders.unshift(order);
   writeOrders(orders);
 
   io.emit("new-order", order);
+  notifyStore(order);
+  notifyCustomerChat(order);
   res.json(order);
 });
 
@@ -171,6 +392,7 @@ app.post("/api/linepay/request", async (req, res) => {
     if (parsed.error) return res.status(400).json({ error: parsed.error });
 
     const order = parsed.value;
+    order.lineUserId = await verifyLineIdToken(req.body?.lineIdToken) || "";
     const origin = baseUrl(req);
 
     const paymentRequest = {
@@ -267,6 +489,8 @@ app.get("/linepay/confirm", async (req, res) => {
     writeOrders(orders);
 
     io.emit("new-order", order);
+    notifyStore(order);
+    notifyCustomerChat(order);
     return res.redirect(`/?linepay=success&orderId=${encodeURIComponent(order.id)}`);
   } catch (err) {
     console.error("LINE Pay confirm error:", err);
