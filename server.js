@@ -161,15 +161,12 @@ app.post("/api/orders",(req,res)=>{
   writeOrders(orders);
   io.emit("new-order",order);
 
+  // 重要：這裡只建立訂單，不做任何 Official Account 主動推播。
+  // 訂單文字只由前端 liff.sendMessages() 以客人本人身分送回當前 OA 聊天室。
+
   // 不再由 Official Account 主動把訂單推給客人。
   // 完整訂單會由前端 liff.sendMessages() 以客人本人身分傳回官方帳號聊天室。
   res.json(order);
-
-  // 若店家另有設定固定通知對象，仍可保留內部通知。
-  if(LINE_NOTIFY_TARGET&&LINE_CHANNEL_ACCESS_TOKEN){
-    pushLineMessage(LINE_NOTIFY_TARGET,formatOrderForLine(order))
-      .catch(e=>console.error("LINE internal order push failed:",e.message));
-  }
 });
 
 app.get("/api/orders/:id",(req,res)=>{const o=readOrders().find(x=>x.id===req.params.id);if(!o)return res.status(404).json({error:"找不到訂單"});res.json({id:o.id,status:o.status,pickup:o.pickup,total:o.total,createdAt:o.createdAt})});
