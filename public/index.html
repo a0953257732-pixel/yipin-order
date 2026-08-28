@@ -12,11 +12,11 @@ header{position:sticky;top:0;z-index:50;background:rgba(255,253,248,.96);backdro
 nav{background:#fffdf8;border-top:1px solid #eee8dc;border-bottom:1px solid #dcd5c8;display:flex;justify-content:center;overflow:auto;padding:0 8px;scrollbar-width:none}nav::-webkit-scrollbar{display:none}nav button{position:relative;border:0;background:transparent;color:#687169;min-width:max-content;padding:12px 15px;font-size:12px;font-weight:800;letter-spacing:1px}nav button:after{content:"";position:absolute;left:20px;right:20px;bottom:0;height:2px;background:transparent}nav button.active{color:var(--deep)}nav button.active:after{background:var(--gold)}
 main{max-width:900px;margin:18px auto 0;padding:0 18px 120px;background:rgba(255,255,255,.84);border:1px solid #eee9df;box-shadow:var(--shadow)}#menu{padding:18px 12px 8px}.section-head{display:flex;align-items:end;justify-content:space-between;margin:0 2px 10px;padding-bottom:10px;border-bottom:1px solid #cfc6b4}.section-head h2{margin:0;font-family:"Noto Serif TC","PMingLiU",serif;font-size:22px;letter-spacing:3px;color:var(--deep);font-weight:900}.section-head h2:before{content:"茶";display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;background:var(--deep);color:#f0dcae;font-size:11px;border-radius:50%;margin-right:9px;vertical-align:3px;letter-spacing:0}.section-title-wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.section-note{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid #d8c7a1;background:linear-gradient(180deg,#fffaf0,#f5ecda);color:#765f2f;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.5px;white-space:nowrap;box-shadow:0 2px 8px rgba(184,154,91,.08)}.section-note:before{content:"✦";color:var(--gold);font-size:9px}.section-head span{font-size:10px;color:#999;letter-spacing:1px}.menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 30px}.card{background:transparent;border:0;border-bottom:1px dashed #d8d1c4;padding:13px 3px;min-height:66px;display:grid;grid-template-columns:minmax(0,1fr) 36px 44px;align-items:center;column-gap:7px}.card:hover{background:#faf7f0}.name{font-weight:800;font-size:14px;letter-spacing:.5px;color:#2f3933}.price{font-family:Georgia,serif;font-weight:700;color:var(--deep);font-size:15px;white-space:nowrap;text-align:right}.price:before{content:"$";font-size:10px;margin-right:2px;color:var(--gold)}.add{background:transparent;color:var(--deep);border:1px solid #a9b9ad;border-radius:50%;width:30px;height:30px;font-size:18px;line-height:1}.add:hover{background:var(--deep);color:#fff}.name:after{content:"現泡";font-size:8px;color:#846e3f;border:1px solid #d7c69f;padding:1px 4px;margin-left:6px;vertical-align:2px;font-weight:700;letter-spacing:0}
 .bar{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);width:min(840px,calc(100% - 22px));background:rgba(11,48,34,.97);color:#fff;padding:9px 10px 9px 18px;border:1px solid rgba(231,207,156,.35);border-radius:5px;z-index:80;display:flex;justify-content:space-between;align-items:center;box-shadow:0 12px 32px rgba(0,0,0,.22)}.cart-summary{font-size:11px;letter-spacing:.5px}.cart-summary b{font-size:17px;color:#f2ddb0}.bar button{border:1px solid #e4d0a6;border-radius:2px;padding:10px 16px;font-weight:900;background:#f8f1e1;color:var(--deep)}
-.overlay{display:none;position:fixed;inset:0;background:rgba(5,24,16,.62);z-index:100;align-items:flex-end}.overlay.show{display:flex}.sheet{background:var(--paper);width:100%;max-width:760px;margin:auto;max-height:93vh;overflow:auto;border-radius:18px 18px 0 0;padding:24px 18px 30px;border-top:3px solid var(--gold);box-shadow:0 -10px 40px rgba(0,0,0,.18)}.sheet h2{margin:0;font-family:"Noto Serif TC","PMingLiU",serif;font-size:22px;color:var(--deep);letter-spacing:2px}.sheet>div:nth-child(2){color:#92763f;font-weight:900;margin-top:6px}.opt{margin:19px 0}.opt>b{display:block;margin-bottom:8px;font-size:13px;color:var(--deep);letter-spacing:1px}.choices{display:flex;flex-wrap:wrap;gap:7px}.choices label{border:1px solid var(--line);border-radius:3px;padding:9px 11px;font-size:12px;background:#fff}.choices label:has(input:checked){border-color:var(--deep);background:#edf2ee;color:var(--deep);font-weight:900}input{accent-color:var(--deep)}.actions{display:flex;gap:8px;margin-top:20px}.actions button{flex:1;border:0;border-radius:3px;padding:12px;font-weight:900}.primary{background:var(--deep);color:#fff}.secondary{background:#eee9df;color:#515b54}.item{border-bottom:1px solid var(--line);padding:12px 0;display:flex;justify-content:space-between;gap:10px}.item b{font-size:14px}.item>div:last-child{text-align:right;font-weight:900}.item button{border:0;background:#eee9df;border-radius:3px;padding:4px 8px;margin-top:5px;font-size:11px}.sub{font-size:12px;color:var(--muted);line-height:1.7;margin-top:3px}.fulfillment{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0}.fulfillment label{position:relative;border:1px solid var(--line);background:#fff;padding:12px 10px;border-radius:5px;text-align:center;font-size:13px;font-weight:900;color:#5a625c;cursor:pointer}.fulfillment label:has(input:checked){border-color:var(--deep);background:linear-gradient(180deg,#f0f5f1,#e8f0ea);color:var(--deep);box-shadow:0 0 0 2px rgba(18,63,45,.06)}.fulfillment input{position:absolute;opacity:0;pointer-events:none}.delivery-note{font-size:11px;line-height:1.7;color:#7c6c4d;background:#fbf6eb;border:1px solid #e3d5b8;border-radius:4px;padding:9px 10px;margin-top:8px}.form label{display:block;font-weight:900;margin:12px 0;font-size:13px}.form input,.form textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:3px;margin-top:5px;background:#fff;outline:none}.form input:focus,.form textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,154,91,.10)}.hidden{display:none!important}.total{text-align:right;font-size:20px;font-weight:950;margin-top:15px;color:var(--deep)}.status{background:#f1f5f1;border:1px solid #dce7dc;border-radius:5px;padding:14px;text-align:center;margin-top:14px}.steps{display:flex;justify-content:space-between;font-size:11px;margin-top:12px;gap:4px}.step{flex:1;padding:8px 3px;border-radius:2px;background:#e0e2df;color:#687069;font-weight:800}.step.on{background:var(--deep);color:#fff}.empty-cart{text-align:center;padding:28px 0;color:var(--muted)}.note{font-size:12px;color:var(--muted);line-height:1.7}.footer-menu-note{margin:14px auto 0;padding:14px 8px 18px;text-align:center;color:#786b51;font-family:"Noto Serif TC","PMingLiU",serif;letter-spacing:4px;font-size:12px}
+.overlay{display:none;position:fixed;inset:0;background:rgba(5,24,16,.62);z-index:100;align-items:flex-end}.overlay.show{display:flex}.sheet{background:var(--paper);width:100%;max-width:760px;margin:auto;max-height:93vh;overflow:auto;border-radius:18px 18px 0 0;padding:24px 18px 30px;border-top:3px solid var(--gold);box-shadow:0 -10px 40px rgba(0,0,0,.18)}.sheet h2{margin:0;font-family:"Noto Serif TC","PMingLiU",serif;font-size:22px;color:var(--deep);letter-spacing:2px}.sheet>div:nth-child(2){color:#92763f;font-weight:900;margin-top:6px}.opt{margin:19px 0}.opt>b{display:block;margin-bottom:8px;font-size:13px;color:var(--deep);letter-spacing:1px}.choices{display:flex;flex-wrap:wrap;gap:7px}.choices label{border:1px solid var(--line);border-radius:3px;padding:9px 11px;font-size:12px;background:#fff}.choices label:has(input:checked){border-color:var(--deep);background:#edf2ee;color:var(--deep);font-weight:900}input{accent-color:var(--deep)}.actions{display:flex;gap:8px;margin-top:20px}.actions button{flex:1;border:0;border-radius:3px;padding:12px;font-weight:900}.primary{background:var(--deep);color:#fff}.secondary{background:#eee9df;color:#515b54}.item{border-bottom:1px solid var(--line);padding:12px 0;display:flex;justify-content:space-between;gap:10px}.item b{font-size:14px}.item>div:last-child{text-align:right;font-weight:900}.item button{border:0;background:#eee9df;border-radius:3px;padding:4px 8px;margin-top:5px;font-size:11px}.sub{font-size:12px;color:var(--muted);line-height:1.7;margin-top:3px}.fulfillment{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0}.fulfillment label{position:relative;border:1px solid var(--line);background:#fff;padding:12px 10px;border-radius:5px;text-align:center;font-size:13px;font-weight:900;color:#5a625c;cursor:pointer}.fulfillment label:has(input:checked){border-color:var(--deep);background:linear-gradient(180deg,#f0f5f1,#e8f0ea);color:var(--deep);box-shadow:0 0 0 2px rgba(18,63,45,.06)}.fulfillment input{position:absolute;opacity:0;pointer-events:none}.delivery-note{font-size:11px;line-height:1.7;color:#7c6c4d;background:#fbf6eb;border:1px solid #e3d5b8;border-radius:4px;padding:9px 10px;margin-top:8px}.form label{display:block;font-weight:900;margin:12px 0;font-size:13px}.form input,.form textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:3px;margin-top:5px;background:#fff;outline:none}.form input:focus,.form textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,154,91,.10)}.hidden{display:none!important}.total{text-align:right;font-size:20px;font-weight:950;margin-top:15px;color:var(--deep)}.status{background:#f1f5f1;border:1px solid #dce7dc;border-radius:5px;padding:14px;text-align:center;margin-top:14px}.steps{display:flex;justify-content:space-between;font-size:11px;margin-top:12px;gap:4px}.step{flex:1;padding:8px 3px;border-radius:2px;background:#e0e2df;color:#687069;font-weight:800}.step.on{background:var(--deep);color:#fff}.share-cart-btn{width:100%;margin-top:12px;border:1px solid #c9b27d;background:#fbf5e7;color:var(--deep);padding:11px 12px;border-radius:4px;font-weight:900;letter-spacing:1px}.share-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:7px;line-height:1.6}#groupSyncStatus{color:var(--deep);font-weight:900}.empty-cart{text-align:center;padding:28px 0;color:var(--muted)}.note{font-size:12px;color:var(--muted);line-height:1.7}.footer-menu-note{margin:14px auto 0;padding:14px 8px 18px;text-align:center;color:#786b51;font-family:"Noto Serif TC","PMingLiU",serif;letter-spacing:4px;font-size:12px}
 @media(max-width:650px){.section-title-wrap{gap:7px}.section-note{font-size:9px;padding:4px 8px;white-space:normal}.hero-box{align-items:flex-start;flex-direction:column}.hero-copy{gap:7px}.hero-picks{font-size:13px}.info-strip{justify-content:flex-start;overflow:auto;gap:18px;font-size:10px}.brand-area{grid-template-columns:1fr;padding:14px 12px 11px;text-align:center}.brand-side{display:none}.brand{font-size:27px;letter-spacing:6px}.slogan{font-size:11px;letter-spacing:3px}.recommend{padding:0 10px;margin-bottom:8px}.recommend-box{justify-content:flex-start;gap:8px}.recommend-main{font-size:14px}.recommend-sub{display:none}nav{justify-content:flex-start}main{margin-top:10px;padding:0 8px 115px;border-left:0;border-right:0;box-shadow:none}#menu{padding:14px 4px}.menu-grid{grid-template-columns:1fr;gap:0}.card{min-height:60px}nav button{padding:11px 12px;font-size:12px}.section-head h2{font-size:20px}}
 
 .payment-title{font-weight:900;margin:18px 0 8px;font-size:13px;color:var(--deep)}
-.payment-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}.payment-option{position:relative;border:1px solid var(--line);background:#fff;padding:13px 10px;border-radius:5px;text-align:center;font-size:13px;font-weight:900;cursor:pointer}.payment-option:has(input:checked){border-color:var(--deep);background:#edf2ee;color:var(--deep)}.payment-option input{position:absolute;opacity:0}.payment-note{font-size:11px;line-height:1.65;color:#7c6c4d;background:#fbf6eb;border:1px solid #e3d5b8;border-radius:4px;padding:9px 10px;margin-top:8px}
+.payment-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}.payment-option{position:relative;border:1px solid var(--line);background:#fff;padding:13px 10px;border-radius:5px;text-align:center;font-size:13px;font-weight:900;cursor:pointer}.payment-option:has(input:checked){border-color:var(--deep);background:#edf2ee;color:var(--deep)}.payment-option input{position:absolute;opacity:0}.payment-note{font-size:11px;line-height:1.65;color:#7c6c4d;background:#fbf6eb;border:1px solid #e3d5b8;border-radius:4px;padding:9px 10px;margin-top:8px}.reset-order-btn{margin-top:10px;width:100%;border:1px solid var(--line);background:#fff;color:#687169;border-radius:4px;padding:9px 10px;font-size:12px;font-weight:800}.minimize-tip{font-size:11px;line-height:1.65;color:#59665e;background:#eef4ef;border:1px solid #d5e1d7;border-radius:4px;padding:9px 10px;margin-top:8px}
 </style></head><body>
 <header>
   <div class="info-strip">
@@ -46,14 +46,18 @@ main{max-width:900px;margin:18px auto 0;padding:0 18px 120px;background:rgba(255
 <div class="bar"><span class="cart-summary">購物車 <b id="count">0</b> 杯　｜　$<b id="total">0</b></span><button onclick="openCart()">查看購物車 →</button></div>
 
 <div class="overlay" id="itemModal"><div class="sheet"><h2 id="title"></h2><div id="price"></div><div class="opt"><b>甜度</b><div class="choices" id="sweet"></div></div><div class="opt"><b>冰量</b><div class="choices" id="ice"></div></div><div class="opt"><b>加料</b><div class="choices" id="tops"></div></div><div class="actions"><button class="secondary" onclick="closeM('itemModal')">取消</button><button class="primary" onclick="addItem()">加入購物車</button></div></div></div>
-<div class="overlay" id="cartModal"><div class="sheet"><h2>購物車</h2><div id="cart"></div><div class="total">合計 $<span id="cartTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('cartModal')">繼續選購</button><button class="primary" onclick="checkout()">選擇取餐方式</button></div></div></div>
-<div class="overlay" id="checkoutModal"><div class="sheet"><h2>確認訂單</h2><div class="form"><div class="fulfillment"><label><input type="radio" name="method" value="自取" checked onchange="toggleMethod()">🏪 門市自取</label><label><input type="radio" name="method" value="外送" onchange="toggleMethod()">🛵 外送到府</label></div><div id="deliveryHint" class="delivery-note hidden">外送訂單滿 $200 即可送出，實際配送範圍與送達時間以店家確認為準。</div><label>姓名<input id="name"></label><label>電話<input id="phone"></label><label id="timeLabel">自取時間<input id="time" type="datetime-local"></label><label id="addressLabel" class="hidden">外送地址<input id="address" placeholder="請輸入完整地址（含樓層／公司名稱）"></label><label>備註<textarea id="remark" rows="3" placeholder="例如：公司櫃台、到達請來電"></textarea></label><div class="payment-title">付款方式</div><div class="payment-options"><label class="payment-option"><input type="radio" name="paymentMethod" value="現場付款" checked onchange="togglePayment()">🏪 現場付款</label><label class="payment-option"><input type="radio" name="paymentMethod" value="LINE Pay" onchange="togglePayment()">LINE Pay</label></div><div id="linePayApplyNote" class="payment-note hidden">LINE Pay 線上付款功能申請／串接中。正式開通後可直接由此前往 LINE Pay 完成付款。</div></div><div class="total">訂單金額 $<span id="checkoutTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('checkoutModal')">返回</button><button class="primary" id="submitOrderBtn" onclick="submitOrder()">送出訂單</button></div></div></div>
-<div class="overlay" id="successModal"><div class="sheet"><h2>訂單已送出！</h2><div id="successText"></div><div class="status"><b id="statusTitle">🔔 新訂單</b><div id="statusId"></div><div class="status-message" id="lineSendStatus">✅ 訂單已送到店家系統，LINE 官方帳號通知由伺服器處理。</div><div class="steps"><div class="step on" id="snew">新訂單</div><div class="step" id="saccepted">已接單</div><div class="step" id="smaking">製作中</div><div class="step" id="sdone">已完成</div></div></div><div class="actions"><button class="primary" onclick="returnToLine()">完成訂單／回到 LINE</button></div></div></div>
+<div class="overlay" id="cartModal"><div class="sheet"><h2>購物車</h2><div id="cart"></div><div class="total">合計 $<span id="cartTotal">0</span></div><button class="share-cart-btn" onclick="shareCart()">👥 分享一起點</button><div class="share-hint">把目前購物車分享給 LINE 好友或群組，所有人加飲料後會即時同步。</div><div id="groupSyncStatus" class="share-hint hidden">🟢 團購同步中</div><div class="actions"><button class="secondary" onclick="closeM('cartModal')">繼續選購</button><button class="primary" onclick="checkout()">選擇取餐方式</button></div></div></div>
+<div class="overlay" id="checkoutModal"><div class="sheet"><h2>確認訂單</h2><div class="form"><div class="fulfillment"><label><input type="radio" name="method" value="自取" checked onchange="toggleMethod()">🏪 門市自取</label><label><input type="radio" name="method" value="外送" onchange="toggleMethod()">🛵 外送到府</label></div><div id="deliveryHint" class="delivery-note hidden">外送訂單滿 $200 即可送出，實際配送範圍與送達時間以店家確認為準。</div><label>姓名<input id="name"></label><label>電話<input id="phone"></label><label id="timeLabel">自取時間<input id="time" type="datetime-local"></label><label id="addressLabel" class="hidden">外送地址<input id="address" placeholder="請輸入完整地址（含樓層／公司名稱）"></label><label>備註<textarea id="remark" rows="3" placeholder="例如：公司櫃台、到達請來電"></textarea></label><div class="payment-title">付款方式</div><div class="payment-options"><label class="payment-option"><input type="radio" name="paymentMethod" value="現場付款" checked onchange="togglePayment()">🏪 現場付款</label><label class="payment-option"><input type="radio" name="paymentMethod" value="LINE Pay" onchange="togglePayment()">LINE Pay</label></div><div id="linePayApplyNote" class="payment-note hidden">選擇 LINE Pay 後，將前往 LINE Pay 安全付款頁面；付款成功後訂單才會正式成立。點餐內容會自動保存，切換畫面後回來不用重新點。</div><div class="minimize-tip">💬 點餐途中可用 LINE 上方選單「最小化瀏覽器」回聊天室，之後點浮動圖示即可繼續；購物車與填寫內容會保留。</div><div class="minimize-tip">💬 訂單成立後，一品現泡茶官方帳號會把完整訂單明細傳到你的 LINE 聊天室，店家可在同一個客人聊天室接續回覆。</div></div><div class="total">訂單金額 $<span id="checkoutTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('checkoutModal')">返回</button><button class="primary" id="submitOrderBtn" onclick="submitOrder()">送出訂單</button></div></div></div>
+<div class="overlay" id="successModal"><div class="sheet"><h2>訂單已送出！</h2><div id="successText"></div><div class="status"><b id="statusTitle">🔔 新訂單</b><div id="statusId"></div><div class="status-message" id="lineSendStatus">✅ 訂單已成立，完整品項會由一品現泡茶官方帳號傳到這位客人的 LINE 聊天室。</div><div class="steps"><div class="step on" id="snew">新訂單</div><div class="step" id="saccepted">已接單</div><div class="step" id="smaking">製作中</div><div class="step" id="sdone">已完成</div></div></div><div class="actions"><button class="primary" onclick="returnToLine()">完成訂單／回到 LINE</button></div><button class="reset-order-btn" onclick="resetOrderDraft()">重新點一筆</button></div></div>
 
 <script src="/socket.io/socket.io.js"></script><script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
 const LIFF_ID = "2011256472-3TidlkYv";
+const LINE_SEND_LIFF_ID = "2011256472-Tj0ebhYR";
+// 此版本刻意不使用 liff.sendMessages()，以支援 LIFF 瀏覽器最小化。
 let liffReady = false;
+let lineIdToken = "";
+let lastLineOrder = null;
 
 function safeText(v){
   return String(v ?? "")
@@ -70,6 +74,7 @@ async function initLiff(){
     if(!window.liff) throw new Error("LIFF_SDK_NOT_LOADED");
     await liff.init({ liffId: LIFF_ID });
     liffReady = true;
+    lineIdToken = (typeof liff.getIDToken === "function" ? (liff.getIDToken() || "") : "");
     renderLiffDiag();
     return true;
   }catch(err){
@@ -88,7 +93,7 @@ function buildCompactOrderText(order,payload){
     `姓名：${safeText(payload.name)}`,
     `電話：${safeText(payload.phone)}`,
     `${payload.method === "外送" ? "外送時間" : "自取時間"}：${safeText(payload.pickup).includes("T") ? safeText(payload.pickup).split("T")[1].slice(0,5) : safeText(payload.pickup)}`,
-    `付款方式：${safeText(payload.paymentMethod || "現場付款")}`
+    `付款方式：${safeText(payload.paymentMethod || "現場付款")}${payload.paymentMethod==="LINE Pay" && payload.paymentStatus==="paid" ? "（已付款）" : ""}`
   ];
 
   if(payload.method === "外送"){
@@ -115,17 +120,303 @@ function buildCompactOrderText(order,payload){
   return lines.join("\n").slice(0, 4500);
 }
 
+function openLineSender(order,payload){
+  const text=buildCompactOrderText(order,payload);
+  const token=cryptoRandomToken();
+  try{
+    sessionStorage.setItem("yipinLineSend:"+token,JSON.stringify({
+      text,
+      returnUrl: location.origin + location.pathname,
+      createdAt: Date.now()
+    }));
+  }catch(e){
+    throw new Error("無法暫存 LINE 訂單訊息");
+  }
+  const senderUrl=`https://liff.line.me/${LINE_SEND_LIFF_ID}/?token=${encodeURIComponent(token)}`;
+  location.href=senderUrl;
+}
 
-const MENU={"現泡茶": [["一品冰茶（金萱）", 40], ["阿薩姆紅茶", 35], ["錫蘭紅茶", 40], ["伯爵紅茶", 40], ["大吉嶺紅茶", 40], ["阿里山青茶", 40], ["翠玉煎茶", 40], ["茉莉綠茶", 40], ["烏龍綠茶", 40], ["油切綠茶", 40], ["鐵觀音茶", 40], ["東方美人茶", 40], ["普洱茶", 40], ["蕎麥茶", 45], ["桂花烏龍茶", 45], ["蜜桃烏龍茶", 45]], "奶茶": [["一品二奶", 60], ["金萱奶茶", 55], ["茉香奶綠", 55], ["錫蘭奶茶", 55], ["伯爵奶茶", 55], ["阿薩姆奶茶", 55], ["烏龍奶茶", 55], ["鐵觀音奶茶", 55], ["北海道奶茶", 55], ["京都抹茶奶", 65], ["蜂蜜奶茶", 65], ["沖繩黑糖奶茶", 65], ["阿華田", 55], ["可可亞", 55], ["杏仁奶茶", 55], ["黑豆玄米抹茶奶", 65]], "口感奶茶": [["珍珠奶茶", 55], ["珍珠奶綠", 55], ["珍珠黑糖奶茶", 65], ["椰果奶茶", 55], ["珍椰奶茶", 55], ["仙草凍奶茶", 55], ["杏仁凍奶綠", 60], ["統一布丁奶茶", 65]], "鮮奶（瑞穗鮮奶）": [["鮮奶茶", 65], ["鮮奶綠", 65], ["烏龍鮮奶茶", 65], ["鐵觀音鮮奶茶", 65], ["伯爵鮮奶茶", 65], ["抹茶鮮奶茶", 75], ["黑糖鮮奶茶", 75], ["珍珠黑糖鮮奶", 80], ["仙草黑糖鮮奶", 80]], "檸檬": [["檸檬汁", 55], ["檸檬話梅", 55], ["金桔檸檬", 60], ["檸檬梅汁", 60], ["蜂蜜檸檬", 65], ["脆梅檸檬汁", 65], ["峇里島水果茶", 60]], "特調": [["蜜茶", 45], ["仙草蜜茶", 55], ["蜂蜜蘆薈", 55], ["檸檬蘆薈", 55], ["冬瓜茶", 40], ["冬瓜青茶", 55], ["冬瓜鐵觀音", 55], ["冬瓜檸檬", 60], ["蜂蜜綠茶", 55], ["百香綠茶", 55], ["芒果綠茶", 55], ["梅果綠茶", 55], ["檸檬綠茶", 55], ["脆脆青梅綠", 65], ["百香QQ", 60]], "養樂多": [["多多綠", 65], ["百香多多", 60], ["芒果多多", 60], ["檸檬多多", 65]], "養生": [["桂圓紅棗茶", 55], ["黑糖薑母茶", 55], ["韓式柚子茶", 60]], "無咖啡因茶": [["牛蒡茶", 45], ["南非國寶茶", 50], ["紅棗枸杞茶", 45], ["蔓越莓蘋果", 45]]}, TOPS=[["珍珠", 10], ["椰果", 10], ["蘆薈", 10], ["仙草凍", 10], ["綠茶凍", 15], ["杏仁凍", 15], ["統一布丁", 15], ["奶茶", 15], ["鮮奶", 25]], SWEET=["正常糖 80%", "少糖 70%", "半糖 50%", "微糖 30%", "點糖 10%", "無糖 0%"], ICE=["正常冰", "少冰", "微冰", "去冰", "常溫", "溫", "熱"];
+function cryptoRandomToken(){
+  if(window.crypto && crypto.getRandomValues){
+    const a=new Uint32Array(4);crypto.getRandomValues(a);
+    return Array.from(a,x=>x.toString(16).padStart(8,"0")).join("");
+  }
+  return Date.now().toString(36)+Math.random().toString(36).slice(2);
+}
+
+async function sendOrderToCurrentLineChat(order,payload){
+  const status=document.getElementById("lineSendStatus");
+  if(status) status.textContent="正在開啟 LINE 訂單回傳…";
+  openLineSender(order,payload);
+  return true;
+}
+
+async function retryLineSend(){
+  if(!lastLineOrder) return alert("找不到可重新回傳的訂單");
+  await sendOrderToCurrentLineChat(lastLineOrder.order,lastLineOrder.payload);
+}
+
+function clearOrderDraft(){
+  try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+}
+
+function restoreOrderDraft(){
+  try{
+    const raw=localStorage.getItem(DRAFT_KEY);
+    if(!raw) return;
+    const d=JSON.parse(raw);
+    if(!d || !Array.isArray(d.cart)) return;
+
+    cart=d.cart;
+    update();
+
+    const method=document.querySelector(`input[name=method][value="${d.method==="外送"?"外送":"自取"}"]`);
+    if(method) method.checked=true;
+
+    const payment=document.querySelector(`input[name=paymentMethod][value="${d.paymentMethod==="LINE Pay"?"LINE Pay":"現場付款"}"]`);
+    if(payment) payment.checked=true;
+
+    if(document.getElementById('name')) document.getElementById('name').value=d.name||'';
+    if(document.getElementById('phone')) document.getElementById('phone').value=d.phone||'';
+    if(document.getElementById('address')) document.getElementById('address').value=d.address||'';
+    if(document.getElementById('remark')) document.getElementById('remark').value=d.remark||'';
+
+    toggleMethod();
+    togglePayment();
+
+    const timeInput=document.getElementById('time');
+    if(timeInput && d.pickup){
+      if(!timeInput.min || d.pickup>=timeInput.min) timeInput.value=d.pickup;
+    }
+  }catch(e){
+    console.warn("restore draft failed",e);
+  }
+}
+
+function resetOrderDraft(){
+  clearOrderDraft();
+  cart=[];
+  current=null;
+  update();
+
+  ['name','phone','time','address','remark'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value='';
+  });
+
+  const selfPickup=document.querySelector('input[name=method][value="自取"]');
+  if(selfPickup) selfPickup.checked=true;
+  const cash=document.querySelector('input[name=paymentMethod][value="現場付款"]');
+  if(cash) cash.checked=true;
+
+  toggleMethod();
+  togglePayment();
+  closeM('successModal');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function bindDraftAutosave(){
+  ['name','phone','time','address','remark'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('input',saveOrderDraft);
+    el.addEventListener('change',saveOrderDraft);
+  });
+
+  document.querySelectorAll('input[name=method],input[name=paymentMethod]').forEach(el=>{
+    el.addEventListener('change',saveOrderDraft);
+  });
+
+  window.addEventListener('pagehide',saveOrderDraft);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='hidden') saveOrderDraft();
+  });
+}
+
+
+
+let activeShareId="";
+let sharedCartVersion=0;
+let sharedSocket=null;
+
+function setGroupSyncStatus(on,text="🟢 團購同步中"){
+  const el=document.getElementById("groupSyncStatus");
+  if(!el) return;
+  el.textContent=text;
+  el.classList.toggle("hidden",!on);
+}
+
+function applySharedCart(nextCart,version=0){
+  cart=Array.isArray(nextCart)?nextCart:[];
+  sharedCartVersion=Number(version||0);
+  update();
+  if(document.getElementById("cartModal")?.classList.contains("show")) renderCart();
+  saveOrderDraft();
+}
+
+function joinSharedCartRealtime(shareId){
+  activeShareId=shareId||"";
+  if(!activeShareId) return;
+
+  setGroupSyncStatus(true,"🟢 團購即時同步中");
+
+  if(typeof io!=="function") return;
+  if(!sharedSocket){
+    sharedSocket=io();
+    sharedSocket.on("shared-cart-updated",data=>{
+      if(!data || data.shareId!==activeShareId) return;
+      if(Number(data.version||0)<sharedCartVersion) return;
+      applySharedCart(data.cart,data.version);
+    });
+  }
+  sharedSocket.emit("join-shared-cart",activeShareId);
+}
+
+async function addItemToSharedCart(item){
+  const r=await fetch('/api/shared-carts/'+encodeURIComponent(activeShareId)+'/items',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({item})
+  });
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.error||'團購同步失敗');
+  applySharedCart(data.cart,data.version);
+}
+
+async function deleteItemFromSharedCart(item){
+  if(!item?.sharedItemId) throw new Error('缺少團購品項編號');
+  const r=await fetch('/api/shared-carts/'+encodeURIComponent(activeShareId)+'/items/'+encodeURIComponent(item.sharedItemId),{
+    method:'DELETE'
+  });
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.error||'刪除同步失敗');
+  applySharedCart(data.cart,data.version);
+}
+
+async function loadSharedCartFromUrl(){
+  const params=new URLSearchParams(location.search);
+  const shareId=params.get('share');
+  if(!shareId) return;
+
+  try{
+    const r=await fetch('/api/shared-carts/'+encodeURIComponent(shareId),{cache:'no-store'});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.error||'無法載入團購單');
+
+    const incoming=Array.isArray(data.cart)?data.cart:[];
+    if(!incoming.length) throw new Error('這張團購單目前沒有品項');
+
+    // 分享連結代表進入同一張即時團購單，不再做本機「複製一份」。
+    applySharedCart(incoming,data.version);
+    joinSharedCartRealtime(shareId);
+
+    // 保留 share 參數，重新整理後仍會回到同一張團購單。
+    setGroupSyncStatus(true,"🟢 已加入團購，即時同步中");
+  }catch(e){
+    alert(e.message||'載入團購單失敗');
+  }
+}
+
+async function shareCart(){
+  if(!cart.length) return alert('購物車是空的');
+
+  try{
+    let shareId=activeShareId;
+    let shareUrl="";
+
+    if(!shareId){
+      const r=await fetch('/api/shared-carts',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({cart})
+      });
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(data.error||'建立團購單失敗');
+
+      shareId=data.shareId;
+      shareUrl=data.url;
+      applySharedCart(data.cart,data.version);
+      joinSharedCartRealtime(shareId);
+
+      // 讓建立者自己的網址也進入這張團購單，之後重新整理仍同步。
+      const u=new URL(location.href);
+      u.searchParams.set('share',shareId);
+      history.replaceState({},'',u.pathname+u.search);
+    }else{
+      shareUrl=location.origin+'/?share='+encodeURIComponent(shareId);
+    }
+
+    const text=`一品現泡茶｜一起點飲料 🧋\n這是一張即時同步團購單，大家加的飲料會一起更新：`;
+
+    if(window.liff && liffReady && liff.isInClient() && typeof liff.shareTargetPicker==='function'){
+      try{
+        const result=await liff.shareTargetPicker(
+          [{type:'text',text:text+'\n'+shareUrl}],
+          {isMultiple:true}
+        );
+        if(result) return;
+      }catch(err){
+        console.warn('shareTargetPicker failed',err);
+      }
+    }
+
+    if(navigator.share){
+      try{
+        await navigator.share({title:'一品現泡茶｜一起點',text,url:shareUrl});
+        return;
+      }catch(e){}
+    }
+
+    await navigator.clipboard.writeText(text+'\n'+shareUrl);
+    alert('團購連結已複製！所有人打開後會即時同步同一張購物車。');
+  }catch(e){
+    alert(e.message||'分享失敗');
+  }
+}
+
+
+
+const MENU={"現泡茶": [["一品冰茶（金萱）", 40], ["阿薩姆紅茶", 35], ["錫蘭紅茶", 40], ["伯爵紅茶", 40], ["大吉嶺紅茶", 40], ["阿里山青茶", 40], ["翠玉煎茶", 40], ["茉莉綠茶", 40], ["烏龍綠茶", 40], ["油切綠茶", 40], ["鐵觀音茶", 40], ["東方美人茶", 40], ["普洱茶", 40], ["蕎麥茶", 45], ["桂花烏龍茶", 45], ["蜜桃烏龍茶", 45]], "奶茶": [["一品二奶", 60], ["金萱奶茶", 55], ["茉香奶綠", 55], ["錫蘭奶茶", 55], ["伯爵奶茶", 55], ["阿薩姆奶茶", 55], ["烏龍奶茶", 55], ["鐵觀音奶茶", 55], ["北海道奶茶", 55], ["京都抹茶奶", 65], ["蜂蜜奶茶", 65], ["沖繩黑糖奶茶", 65], ["阿華田", 55], ["可可亞", 55], ["杏仁奶茶", 55], ["黑豆玄米抹茶奶", 65]], "口感奶茶": [["珍珠奶茶", 55], ["珍珠奶綠", 55], ["珍珠黑糖奶茶", 65], ["椰果奶茶", 55], ["珍椰奶茶", 55], ["仙草凍奶茶", 55], ["杏仁凍奶綠", 60], ["統一布丁奶茶", 65]], "鮮奶（瑞穗鮮奶）": [["鮮奶茶", 65], ["鮮奶綠", 65], ["烏龍鮮奶茶", 65], ["鐵觀音鮮奶茶", 65], ["伯爵鮮奶茶", 65], ["抹茶鮮奶茶", 75], ["黑糖鮮奶茶", 75], ["珍珠黑糖鮮奶", 80], ["仙草黑糖鮮奶", 80]], "檸檬": [["檸檬汁", 55], ["檸檬話梅", 55], ["金桔檸檬", 60], ["檸檬梅汁", 60], ["蜂蜜檸檬", 65], ["脆梅檸檬汁", 65], ["峇里島水果茶", 60]], "特調": [["蜜茶", 45], ["仙草蜜茶", 55], ["蜂蜜蘆薈", 55], ["檸檬蘆薈", 55], ["冬瓜茶", 40], ["冬瓜青茶", 55], ["冬瓜鐵觀音", 55], ["冬瓜檸檬", 60], ["蜂蜜綠茶", 55], ["百香綠茶", 55], ["芒果綠茶", 55], ["梅果綠茶", 55], ["檸檬綠茶", 55], ["脆脆青梅綠", 65], ["百香QQ", 60]], "養樂多": [["多多綠", 65], ["百香多多", 60], ["芒果多多", 60], ["檸檬多多", 65]], "養生": [["桂圓紅棗茶", 55], ["黑糖薑母茶", 55], ["韓式柚子茶", 60]], "無咖啡因茶": [["牛蒡茶", 45], ["南非國寶茶", 50], ["紅棗枸杞茶", 45], ["蔓越莓蘋果", 45]], "手工熬煮":[["仙草凍",60],["杏仁凍",60],["茶凍",60]]}, TOPS=[["珍珠", 10], ["椰果", 10], ["蘆薈", 10], ["仙草凍", 10], ["綠茶凍", 15], ["杏仁凍", 15], ["統一布丁", 15], ["奶茶", 15], ["鮮奶", 25]], SWEET=["正常糖 80%", "少糖 70%", "半糖 50%", "微糖 30%", "點糖 10%", "無糖 0%"], ICE=["正常冰", "少冰", "微冰", "去冰", "常溫", "溫", "熱"];
 let cart=[],current=null,trackingId=null; const nav=document.getElementById('nav'),menuEl=document.getElementById('menu');
 Object.keys(MENU).forEach((c,i)=>{const b=document.createElement('button');b.textContent=c;b.onclick=()=>show(c,b);if(i===0)b.classList.add('active');nav.appendChild(b)});show(Object.keys(MENU)[0],nav.children[0]);
 function show(c,b){document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');const note=c==='現泡茶'?'<span class="section-note">所有純茶皆可升級為奶茶或鮮奶茶</span>':'';menuEl.innerHTML='<div class="section-head"><div class="section-title-wrap"><h2>'+c+'</h2>'+note+'</div><span>'+MENU[c].length+' 款</span></div><div class="menu-grid">'+MENU[c].map((x,i)=>'<div class="card"><div><div class="name">'+x[0]+'</div></div><button type="button" class="add" aria-label="加入'+x[0]+'" data-cat="'+encodeURIComponent(c)+'" data-index="'+i+'">＋</button><div class="price">'+x[1]+'</div></div>').join('')+'</div>';
 menuEl.querySelectorAll('.add').forEach(btn=>btn.addEventListener('click',()=>openItem(decodeURIComponent(btn.dataset.cat),Number(btn.dataset.index))))}
 function openItem(c,i){current={name:MENU[c][i][0],price:MENU[c][i][1]};document.getElementById('title').textContent=current.name;document.getElementById('price').textContent='$'+current.price+'｜700cc';document.getElementById('sweet').innerHTML=SWEET.map((x,i)=>'<label><input type="radio" name="sweetOpt" value="'+x+'" '+(!i?'checked':'')+'>'+x+'</label>').join('');document.getElementById('ice').innerHTML=ICE.map((x,i)=>'<label><input type="radio" name="iceOpt" value="'+x+'" '+(!i?'checked':'')+'>'+x+'</label>').join('');document.getElementById('tops').innerHTML=TOPS.map(x=>'<label><input type="checkbox" value="'+x[0]+'" data-p="'+x[1]+'">'+x[0]+' +'+x[1]+'</label>').join('');document.getElementById('itemModal').classList.add('show')}
-function closeM(id){document.getElementById(id).classList.remove('show')}function addItem(){const ts=[...document.querySelectorAll('#tops input:checked')].map(x=>({name:x.value,p:Number(x.dataset.p)}));cart.push({...current,sweet:document.querySelector('input[name=sweetOpt]:checked').value,ice:document.querySelector('input[name=iceOpt]:checked').value,tops:ts});closeM('itemModal');update()}
+function closeM(id){document.getElementById(id).classList.remove('show')}async function addItem(){
+  const ts=[...document.querySelectorAll('#tops input:checked')].map(x=>({name:x.value,p:Number(x.dataset.p)}));
+  const item={...current,sweet:document.querySelector('input[name=sweetOpt]:checked').value,ice:document.querySelector('input[name=iceOpt]:checked').value,tops:ts};
+  closeM('itemModal');
+
+  if(activeShareId){
+    try{
+      await addItemToSharedCart(item);
+    }catch(e){
+      alert(e.message||'團購同步失敗');
+    }
+    return;
+  }
+
+  cart.push(item);
+  update();
+  saveOrderDraft();
+}
 function total(){return cart.reduce((a,x)=>a+x.price+x.tops.reduce((s,t)=>s+t.p,0),0)}function update(){document.getElementById('count').textContent=cart.length;document.getElementById('total').textContent=total()}
 function openCart(){renderCart();document.getElementById('cartModal').classList.add('show')}function renderCart(){document.getElementById('cart').innerHTML=cart.length?cart.map((x,i)=>'<div class="item"><div><b>'+x.name+'</b><div class="sub">'+x.sweet+'｜'+x.ice+(x.tops.length?'｜加料：'+x.tops.map(t=>t.name).join('、'):'')+'</div></div><div>$'+(x.price+x.tops.reduce((a,t)=>a+t.p,0))+'<br><button onclick="del('+i+')">刪除</button></div></div>').join(''):'<div class="empty-cart">購物車目前是空的<br><span class="note">選一杯喜歡的茶開始吧。</span></div>';document.getElementById('cartTotal').textContent=total()}
-function del(i){cart.splice(i,1);update();renderCart()}function checkout(){if(!cart.length)return alert('購物車是空的');closeM('cartModal');document.getElementById('checkoutTotal').textContent=total();toggleMethod();document.getElementById('checkoutModal').classList.add('show')}
+async function del(i){
+  const item=cart[i];
+  if(activeShareId){
+    try{
+      await deleteItemFromSharedCart(item);
+    }catch(e){
+      alert(e.message||'刪除失敗');
+    }
+    return;
+  }
+  cart.splice(i,1);
+  update();
+  renderCart();
+  saveOrderDraft();
+}function checkout(){if(!cart.length)return alert('購物車是空的');closeM('cartModal');document.getElementById('checkoutTotal').textContent=total();toggleMethod();document.getElementById('checkoutModal').classList.add('show')}
 
 function setMinimumOrderTime(){
   const method=document.querySelector('input[name=method]:checked')?.value||'自取';
@@ -150,16 +441,147 @@ function setMinimumOrderTime(){
   }
 }
 
-function togglePayment(){const p=document.querySelector('input[name=paymentMethod]:checked')?.value||'現場付款';const lp=p==='LINE Pay';document.getElementById('linePayApplyNote').classList.toggle('hidden',!lp);document.getElementById('submitOrderBtn').textContent=lp?'前往 LINE Pay 付款':'送出訂單';}
-function toggleMethod(){const m=document.querySelector('input[name=method]:checked')?.value||'自取';const delivery=m==='外送';document.getElementById('addressLabel').classList.toggle('hidden',!delivery);document.getElementById('deliveryHint').classList.toggle('hidden',!delivery);document.getElementById('timeLabel').childNodes[0].nodeValue=delivery?'希望送達時間（至少 30 分鐘）':'自取時間（至少 20 分鐘）';setMinimumOrderTime();}
-async function submitOrder(){const method=document.querySelector('input[name=method]:checked')?.value||'自取';const paymentMethod=document.querySelector('input[name=paymentMethod]:checked')?.value||'現場付款';const payload={paymentMethod,name:document.getElementById('name').value.trim(),phone:document.getElementById('phone').value.trim(),pickup:document.getElementById('time').value,address:document.getElementById('address').value.trim(),method,remark:document.getElementById('remark').value,items:cart.map(x=>({...x,tops:(x.tops||[]).map(t=>({...t}))})),total:total()};if(!payload.name||!payload.phone||!payload.pickup)return alert('請完整填寫姓名、電話與時間');if(paymentMethod==='LINE Pay')return alert('LINE Pay 線上付款目前正在申請／串接中，請先選擇「現場付款」完成訂單。');
+function togglePayment(){const p=document.querySelector('input[name=paymentMethod]:checked')?.value||'現場付款';const lp=p==='LINE Pay';document.getElementById('linePayApplyNote').classList.toggle('hidden',!lp);document.getElementById('submitOrderBtn').textContent=lp?'前往 LINE Pay 付款':'送出訂單';saveOrderDraft();}
+function toggleMethod(){const m=document.querySelector('input[name=method]:checked')?.value||'自取';const delivery=m==='外送';document.getElementById('addressLabel').classList.toggle('hidden',!delivery);document.getElementById('deliveryHint').classList.toggle('hidden',!delivery);document.getElementById('timeLabel').childNodes[0].nodeValue=delivery?'希望送達時間（至少 30 分鐘）':'自取時間（至少 20 分鐘）';setMinimumOrderTime();saveOrderDraft();}
+async function submitOrder(){
+  const method=document.querySelector('input[name=method]:checked')?.value||'自取';
+  const paymentMethod=document.querySelector('input[name=paymentMethod]:checked')?.value||'現場付款';
+
+  const payload={
+    paymentMethod,
+    lineIdToken,
+    name:document.getElementById('name').value.trim(),
+    phone:document.getElementById('phone').value.trim(),
+    pickup:document.getElementById('time').value,
+    address:document.getElementById('address').value.trim(),
+    method,
+    remark:document.getElementById('remark').value,
+    items:cart.map(x=>({...x,tops:(x.tops||[]).map(t=>({...t}))})),
+    total:total()
+  };
+
+  if(!payload.name||!payload.phone||!payload.pickup)
+    return alert('請完整填寫姓名、電話與時間');
+
   const minMinutes=method==='外送'?30:20;
   const selectedTime=new Date(payload.pickup).getTime();
   const minimumTime=Date.now()+minMinutes*60*1000;
+
   if(!Number.isFinite(selectedTime)||selectedTime<minimumTime){
     setMinimumOrderTime();
     return alert(method==='外送'?'外送時間請至少選擇 30 分鐘後':'自取時間請至少選擇 20 分鐘後');
-  }if(method==='外送'&&payload.total<200)return alert('外送訂單需滿 $200');if(method==='外送'&&!payload.address)return alert('請填寫完整外送地址');let r;try{r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})}catch(e){return alert('目前無法連線到點餐伺服器，請稍後再試')}if(!r.ok){let msg='送單失敗，請再試一次';try{const e=await r.json();if(e.error)msg=e.error}catch(e){}return alert(msg)}const o=await r.json();trackingId=o.id;document.getElementById('statusId').textContent='訂單編號：'+o.id+'｜'+o.method;renderStatus(o.status||'new');document.getElementById('lineSendStatus').textContent=o.lineNotified===false?'⚠️ 訂單已建立，但店家 LINE 通知尚未送出；店家後台仍看得到此訂單。':'✅ 訂單已建立，店家 LINE 官方帳號通知由伺服器處理。';closeM('checkoutModal');document.getElementById('successModal').classList.add('show');cart=[];update();}
+  }
+
+  if(method==='外送'&&payload.total<200)
+    return alert('外送訂單需滿 $200');
+  if(method==='外送'&&!payload.address)
+    return alert('請填寫完整外送地址');
+
+  const btn=document.getElementById('submitOrderBtn');
+  if(btn){btn.disabled=true;btn.textContent=paymentMethod==='LINE Pay'?'正在建立 LINE Pay 付款…':'正在送出訂單…';}
+
+  try{
+    if(paymentMethod==='LINE Pay'){
+      const r=await fetch('/api/linepay/request',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+      });
+
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(data.error||'LINE Pay 建立付款失敗');
+
+      sessionStorage.setItem('yipinLinePayOrderId',data.orderId||'');saveOrderDraft();
+
+      const paymentUrl =
+        data.paymentUrl?.universal ||
+        (window.liff && liffReady && liff.isInClient() ? data.paymentUrl?.app : null) ||
+        data.paymentUrl?.web;
+
+      if(!paymentUrl) throw new Error('LINE Pay 未回傳付款網址');
+
+      window.location.href=paymentUrl;
+      return;
+    }
+
+    const r=await fetch('/api/orders',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+
+    if(!r.ok){
+      const e=await r.json().catch(()=>({}));
+      throw new Error(e.error||'送單失敗，請再試一次');
+    }
+
+    const o=await r.json();
+    trackingId=o.id;
+    lastLineOrder={order:o,payload:{...payload,paymentStatus:'unpaid'}};
+    document.getElementById('statusId').textContent='訂單編號：'+o.id+'｜'+o.method;
+    renderStatus(o.status||'new');
+    closeM('checkoutModal');
+    document.getElementById('successModal').classList.add('show');
+    cart=[];
+    update();
+    clearOrderDraft();
+    await sendOrderToCurrentLineChat(o,lastLineOrder.payload);
+
+  }catch(e){
+    alert(e.message||'送單失敗，請稍後再試');
+  }finally{
+    if(btn){
+      btn.disabled=false;
+      togglePayment();
+    }
+  }
+}
+
+async function handleLinePayReturn(){
+  const qs=new URLSearchParams(location.search);
+  const state=qs.get('linepay');
+  if(!state) return;
+
+  const orderId=qs.get('orderId')||sessionStorage.getItem('yipinLinePayOrderId')||'';
+
+  if(state==='cancel'){
+    alert('您已取消 LINE Pay 付款，訂單尚未成立。');
+    history.replaceState({},'',location.pathname);
+    return;
+  }
+
+  if(state==='fail'){
+    const msg=qs.get('message')||'LINE Pay 付款失敗';
+    alert('LINE Pay 付款未完成：'+msg);
+    history.replaceState({},'',location.pathname);
+    return;
+  }
+
+  if(state==='success'&&orderId){
+    try{
+      const r=await fetch('/api/orders/'+encodeURIComponent(orderId)+'/receipt',{cache:'no-store'});
+      const o=await r.json();
+      if(!r.ok) throw new Error(o.error||'無法讀取付款訂單');
+
+      trackingId=o.id;
+      const payload={...o,paymentMethod:'LINE Pay',paymentStatus:'paid'};
+      lastLineOrder={order:o,payload};
+
+      document.getElementById('statusId').textContent='訂單編號：'+o.id+'｜'+o.method+'｜LINE Pay 已付款';
+      renderStatus(o.status||'new');
+      document.getElementById('successModal').classList.add('show');
+      document.getElementById('lineSendStatus').textContent='✅ LINE Pay 付款成功，正在回傳訂單到 LINE。';
+
+      sessionStorage.removeItem('yipinLinePayOrderId');
+      clearOrderDraft();
+      await sendOrderToCurrentLineChat(o,payload);
+      history.replaceState({},'',location.pathname);
+    }catch(e){
+      alert('付款已返回，但讀取訂單失敗：'+e.message);
+    }
+  }
+}
+
 if (typeof io === 'function') {
   const socket=io();
   socket.on('order-updated',o=>{if(o.id===trackingId)renderStatus(o.status)});
@@ -177,10 +599,21 @@ async function returnToLine(){
   alert('訂單已完成。若目前不是在 LINE App 內開啟，請回到官方 LINE。');
 }
 
+async function boot(){
+  await initLiff();
+  const hasShare=new URLSearchParams(location.search).has('share');
+  if(hasShare){
+    await loadSharedCartFromUrl();
+  }else{
+    restoreOrderDraft();
+  }
+  bindDraftAutosave();
+  await handleLinePayReturn();
+}
 if(document.readyState === "loading"){
-  document.addEventListener("DOMContentLoaded", initLiff);
+  document.addEventListener("DOMContentLoaded", boot);
 }else{
-  initLiff();
+  boot();
 }
 </script></body></html>
 ```
