@@ -46,7 +46,7 @@ main{max-width:900px;margin:18px auto 0;padding:0 18px 120px;background:rgba(255
 
 <div class="overlay" id="itemModal"><div class="sheet"><h2 id="title"></h2><div id="price"></div><div class="opt"><b>甜度</b><div class="choices" id="sweet"></div></div><div class="opt"><b>冰量</b><div class="choices" id="ice"></div></div><div class="opt"><b>加料</b><div class="choices" id="tops"></div></div><div class="actions"><button class="secondary" onclick="closeM('itemModal')">取消</button><button class="primary" onclick="addItem()">加入購物車</button></div></div></div>
 <div class="overlay" id="cartModal"><div class="sheet"><h2>購物車</h2><div id="cart"></div><div class="total">合計 $<span id="cartTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('cartModal')">繼續選購</button><button class="primary" onclick="checkout()">選擇取餐方式</button></div></div></div>
-<div class="overlay" id="checkoutModal"><div class="sheet"><h2>確認訂單</h2><div class="form"><div class="fulfillment"><label><input type="radio" name="method" value="自取" checked onchange="toggleMethod()">🏪 門市自取</label><label><input type="radio" name="method" value="外送" onchange="toggleMethod()">🛵 外送到府</label></div><div id="deliveryHint" class="delivery-note hidden">外送訂單滿 $200 即可送出，實際配送範圍與送達時間以店家確認為準。</div><label>姓名<input id="name"></label><label>電話<input id="phone"></label><label id="timeLabel">自取時間<input id="time" type="datetime-local"></label><label id="addressLabel" class="hidden">外送地址<input id="address" placeholder="請輸入完整地址（含樓層／公司名稱）"></label><label>備註<textarea id="remark" rows="3" placeholder="例如：公司櫃台、到達請來電"></textarea></label><div class="payment-title">付款方式</div><div class="payment-options"><label class="payment-option"><input type="radio" name="paymentMethod" value="現場付款" checked onchange="togglePayment()">🏪 現場付款</label><label class="payment-option"><input type="radio" name="paymentMethod" value="LINE Pay" onchange="togglePayment()">LINE Pay</label></div><div id="linePayApplyNote" class="payment-note hidden">LINE Pay 線上付款功能申請／串接中。正式開通後可直接由此前往 LINE Pay 完成付款。</div></div><div class="total">訂單金額 $<span id="checkoutTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('checkoutModal')">返回</button><button class="primary" id="submitOrderBtn" onclick="submitOrder()">送出訂單</button></div></div></div>
+<div class="overlay" id="checkoutModal"><div class="sheet"><h2>確認訂單</h2><div class="form"><div class="fulfillment"><label><input type="radio" name="method" value="自取" checked onchange="toggleMethod()">🏪 門市自取</label><label><input type="radio" name="method" value="外送" onchange="toggleMethod()">🛵 外送到府</label></div><div id="deliveryHint" class="delivery-note hidden">外送訂單滿 $200 即可送出，實際配送範圍與送達時間以店家確認為準。</div><label>姓名<input id="name"></label><label>電話<input id="phone"></label><label id="timeLabel">自取時間<input id="time" type="datetime-local"></label><label id="addressLabel" class="hidden">外送地址<input id="address" placeholder="請輸入完整地址（含樓層／公司名稱）"></label><label>備註<textarea id="remark" rows="3" placeholder="例如：公司櫃台、到達請來電"></textarea></label><div class="payment-title">付款方式</div><div class="payment-options"><label class="payment-option"><input type="radio" name="paymentMethod" value="現場付款" checked onchange="togglePayment()">🏪 現場付款</label><label class="payment-option"><input type="radio" name="paymentMethod" value="LINE Pay" onchange="togglePayment()">LINE Pay</label></div><div id="linePayApplyNote" class="payment-note hidden">選擇 LINE Pay 後，將前往 LINE Pay 安全付款頁面；付款成功後訂單才會正式成立。</div></div><div class="total">訂單金額 $<span id="checkoutTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('checkoutModal')">返回</button><button class="primary" id="submitOrderBtn" onclick="submitOrder()">送出訂單</button></div></div></div>
 <div class="overlay" id="successModal"><div class="sheet"><h2>訂單已送出！</h2><div id="successText"></div><div class="status"><b id="statusTitle">🔔 新訂單</b><div id="statusId"></div><div class="status-message" id="lineSendStatus">正在把訂單回傳到 LINE 聊天室…</div><div class="steps"><div class="step on" id="snew">新訂單</div><div class="step" id="saccepted">已接單</div><div class="step" id="smaking">製作中</div><div class="step" id="sdone">已完成</div></div></div><div class="actions"><button class="secondary hidden" id="retryLineBtn" onclick="retryLineSend()">重新回傳 LINE</button><button class="primary" onclick="returnToLine()">完成訂單／回到 LINE</button></div></div></div>
 
 <script src="/socket.io/socket.io.js"></script><script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -88,7 +88,7 @@ function buildCompactOrderText(order,payload){
     `姓名：${safeText(payload.name)}`,
     `電話：${safeText(payload.phone)}`,
     `${payload.method === "外送" ? "外送時間" : "自取時間"}：${safeText(payload.pickup).includes("T") ? safeText(payload.pickup).split("T")[1].slice(0,5) : safeText(payload.pickup)}`,
-    `付款方式：${safeText(payload.paymentMethod || "現場付款")}`
+    `付款方式：${safeText(payload.paymentMethod || "現場付款")}${payload.paymentMethod==="LINE Pay" && payload.paymentStatus==="paid" ? "（已付款）" : ""}`
   ];
 
   if(payload.method === "外送"){
@@ -207,14 +207,142 @@ function setMinimumOrderTime(){
 
 function togglePayment(){const p=document.querySelector('input[name=paymentMethod]:checked')?.value||'現場付款';const lp=p==='LINE Pay';document.getElementById('linePayApplyNote').classList.toggle('hidden',!lp);document.getElementById('submitOrderBtn').textContent=lp?'前往 LINE Pay 付款':'送出訂單';}
 function toggleMethod(){const m=document.querySelector('input[name=method]:checked')?.value||'自取';const delivery=m==='外送';document.getElementById('addressLabel').classList.toggle('hidden',!delivery);document.getElementById('deliveryHint').classList.toggle('hidden',!delivery);document.getElementById('timeLabel').childNodes[0].nodeValue=delivery?'希望送達時間（至少 30 分鐘）':'自取時間（至少 20 分鐘）';setMinimumOrderTime();}
-async function submitOrder(){const method=document.querySelector('input[name=method]:checked')?.value||'自取';const paymentMethod=document.querySelector('input[name=paymentMethod]:checked')?.value||'現場付款';const payload={paymentMethod,name:document.getElementById('name').value.trim(),phone:document.getElementById('phone').value.trim(),pickup:document.getElementById('time').value,address:document.getElementById('address').value.trim(),method,remark:document.getElementById('remark').value,items:cart.map(x=>({...x,tops:(x.tops||[]).map(t=>({...t}))})),total:total()};if(!payload.name||!payload.phone||!payload.pickup)return alert('請完整填寫姓名、電話與時間');if(paymentMethod==='LINE Pay')return alert('LINE Pay 線上付款目前正在申請／串接中，請先選擇「現場付款」完成訂單。');
+async function submitOrder(){
+  const method=document.querySelector('input[name=method]:checked')?.value||'自取';
+  const paymentMethod=document.querySelector('input[name=paymentMethod]:checked')?.value||'現場付款';
+
+  const payload={
+    paymentMethod,
+    name:document.getElementById('name').value.trim(),
+    phone:document.getElementById('phone').value.trim(),
+    pickup:document.getElementById('time').value,
+    address:document.getElementById('address').value.trim(),
+    method,
+    remark:document.getElementById('remark').value,
+    items:cart.map(x=>({...x,tops:(x.tops||[]).map(t=>({...t}))})),
+    total:total()
+  };
+
+  if(!payload.name||!payload.phone||!payload.pickup)
+    return alert('請完整填寫姓名、電話與時間');
+
   const minMinutes=method==='外送'?30:20;
   const selectedTime=new Date(payload.pickup).getTime();
   const minimumTime=Date.now()+minMinutes*60*1000;
+
   if(!Number.isFinite(selectedTime)||selectedTime<minimumTime){
     setMinimumOrderTime();
     return alert(method==='外送'?'外送時間請至少選擇 30 分鐘後':'自取時間請至少選擇 20 分鐘後');
-  }if(method==='外送'&&payload.total<200)return alert('外送訂單需滿 $200');if(method==='外送'&&!payload.address)return alert('請填寫完整外送地址');let r;try{r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})}catch(e){return alert('目前無法連線到點餐伺服器，請稍後再試')}if(!r.ok){let msg='送單失敗，請再試一次';try{const e=await r.json();if(e.error)msg=e.error}catch(e){}return alert(msg)}const o=await r.json();trackingId=o.id;lastLineOrder={order:o,payload};document.getElementById('statusId').textContent='訂單編號：'+o.id+'｜'+o.method;renderStatus(o.status||'new');closeM('checkoutModal');document.getElementById('successModal').classList.add('show');await sendOrderToCurrentLineChat(o,payload);cart=[];update();}
+  }
+
+  if(method==='外送'&&payload.total<200)
+    return alert('外送訂單需滿 $200');
+  if(method==='外送'&&!payload.address)
+    return alert('請填寫完整外送地址');
+
+  const btn=document.getElementById('submitOrderBtn');
+  if(btn){btn.disabled=true;btn.textContent=paymentMethod==='LINE Pay'?'正在建立 LINE Pay 付款…':'正在送出訂單…';}
+
+  try{
+    if(paymentMethod==='LINE Pay'){
+      const r=await fetch('/api/linepay/request',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+      });
+
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(data.error||'LINE Pay 建立付款失敗');
+
+      sessionStorage.setItem('yipinLinePayOrderId',data.orderId||'');
+
+      const paymentUrl =
+        data.paymentUrl?.universal ||
+        (window.liff && liffReady && liff.isInClient() ? data.paymentUrl?.app : null) ||
+        data.paymentUrl?.web;
+
+      if(!paymentUrl) throw new Error('LINE Pay 未回傳付款網址');
+
+      window.location.href=paymentUrl;
+      return;
+    }
+
+    const r=await fetch('/api/orders',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+
+    if(!r.ok){
+      const e=await r.json().catch(()=>({}));
+      throw new Error(e.error||'送單失敗，請再試一次');
+    }
+
+    const o=await r.json();
+    trackingId=o.id;
+    lastLineOrder={order:o,payload:{...payload,paymentStatus:'unpaid'}};
+    document.getElementById('statusId').textContent='訂單編號：'+o.id+'｜'+o.method;
+    renderStatus(o.status||'new');
+    closeM('checkoutModal');
+    document.getElementById('successModal').classList.add('show');
+    await sendOrderToCurrentLineChat(o,lastLineOrder.payload);
+    cart=[];
+    update();
+
+  }catch(e){
+    alert(e.message||'送單失敗，請稍後再試');
+  }finally{
+    if(btn){
+      btn.disabled=false;
+      togglePayment();
+    }
+  }
+}
+
+async function handleLinePayReturn(){
+  const qs=new URLSearchParams(location.search);
+  const state=qs.get('linepay');
+  if(!state) return;
+
+  const orderId=qs.get('orderId')||sessionStorage.getItem('yipinLinePayOrderId')||'';
+
+  if(state==='cancel'){
+    alert('您已取消 LINE Pay 付款，訂單尚未成立。');
+    history.replaceState({},'',location.pathname);
+    return;
+  }
+
+  if(state==='fail'){
+    const msg=qs.get('message')||'LINE Pay 付款失敗';
+    alert('LINE Pay 付款未完成：'+msg);
+    history.replaceState({},'',location.pathname);
+    return;
+  }
+
+  if(state==='success'&&orderId){
+    try{
+      const r=await fetch('/api/orders/'+encodeURIComponent(orderId)+'/receipt',{cache:'no-store'});
+      const o=await r.json();
+      if(!r.ok) throw new Error(o.error||'無法讀取付款訂單');
+
+      trackingId=o.id;
+      const payload={...o,paymentMethod:'LINE Pay',paymentStatus:'paid'};
+      lastLineOrder={order:o,payload};
+
+      document.getElementById('statusId').textContent='訂單編號：'+o.id+'｜'+o.method+'｜LINE Pay 已付款';
+      renderStatus(o.status||'new');
+      document.getElementById('successModal').classList.add('show');
+      document.getElementById('lineSendStatus').textContent='✅ LINE Pay 付款成功，正在回傳訂單到 LINE 聊天室…';
+
+      await sendOrderToCurrentLineChat(o,payload);
+      sessionStorage.removeItem('yipinLinePayOrderId');
+      history.replaceState({},'',location.pathname);
+    }catch(e){
+      alert('付款已返回，但讀取訂單失敗：'+e.message);
+    }
+  }
+}
+
 if (typeof io === 'function') {
   const socket=io();
   socket.on('order-updated',o=>{if(o.id===trackingId)renderStatus(o.status)});
@@ -232,9 +360,13 @@ async function returnToLine(){
   alert('訂單已完成。若目前不是在 LINE App 內開啟，請回到官方 LINE。');
 }
 
+async function boot(){
+  await initLiff();
+  await handleLinePayReturn();
+}
 if(document.readyState === "loading"){
-  document.addEventListener("DOMContentLoaded", initLiff);
+  document.addEventListener("DOMContentLoaded", boot);
 }else{
-  initLiff();
+  boot();
 }
 </script></body></html>
