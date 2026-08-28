@@ -79,38 +79,25 @@ async function resolveLineUserId(idToken,accessToken){
   if(idToken){
     try{
       const userId=await verifyLineIdToken(idToken);
-      if(userId){
-        console.log("[LINE] user resolved by id_token",userId.slice(0,8)+"...");
-        return userId;
-      }
-    }catch(e){
-      console.error("[LINE] id_token resolve failed",e?.message);
-    }
+      if(userId) return String(userId);
+    }catch(e){ console.error("[LINE] id token resolve failed",e?.message); }
   }
-
   if(accessToken){
     try{
       const r=await fetch("https://api.line.me/v2/profile",{
         headers:{"Authorization":`Bearer ${String(accessToken)}`}
       });
       const raw=await r.text();
-      if(!r.ok){
-        console.error("[LINE] profile resolve failed",r.status,raw);
-      }else{
+      if(r.ok){
         const data=JSON.parse(raw||"{}");
-        if(data?.userId){
-          console.log("[LINE] user resolved by access_token",String(data.userId).slice(0,8)+"...");
-          return String(data.userId);
-        }
+        if(data?.userId) return String(data.userId);
+      }else{
+        console.error("[LINE] profile resolve failed",r.status,raw);
       }
-    }catch(e){
-      console.error("[LINE] access_token resolve failed",e?.message);
-    }
+    }catch(e){ console.error("[LINE] access token resolve failed",e?.message); }
   }
-
   return "";
 }
-
 
 function verifyLineSignature(req){
   if(!LINE_CHANNEL_SECRET) return false;
@@ -120,19 +107,8 @@ function verifyLineSignature(req){
 }
 async function lineApi(pathname,payload){
   if(!LINE_CHANNEL_ACCESS_TOKEN) throw new Error("LINE_CHANNEL_ACCESS_TOKEN 尚未設定");
-  const r=await fetch(`https://api.line.me${pathname}`,{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":`Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`
-    },
-    body:JSON.stringify(payload)
-  });
-  if(!r.ok){
-    const text=await r.text();
-    console.error("[LINE] API failed",{pathname,status:r.status,body:text});
-    throw new Error(`LINE API ${r.status}: ${text}`);
-  }
+  const r=await fetch(`https://api.line.me${pathname}`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`},body:JSON.stringify(payload)});
+  if(!r.ok) throw new Error(`LINE API ${r.status}: ${await r.text()}`);
 }
 async function replyLineMessage(replyToken,text){if(replyToken) await lineApi("/v2/bot/message/reply",{replyToken,messages:[{type:"text",text}]})}
 async function pushLineMessage(to,text){if(to) await lineApi("/v2/bot/message/push",{to,messages:[{type:"text",text}]})}
@@ -243,50 +219,6 @@ function linePayProducts(items){
 }
 
 
-
-function customerReceiptMessage(order){
-  const itemLines=(order.items||[]).map((x,i)=>{
-    const tops=(x.tops||x.addons||[]).map(t=>typeof t==="string"?t:t?.name).filter(Boolean);
-    const sweet=x.sweet||x.sugar||"";
-    const ice=x.ice||"";
-    return `${i+1}. ${x.name||x.title||"品項"}${sweet?`｜${sweet}`:""}${ice?`｜${ice}`:""}${tops.length?`｜加料：${tops.join("、")}`:""}`;
-  });
-  return [
-    "🔔 一品現泡茶｜訂單已收到",
-    `訂單編號：${order.id}`,
-    order.method==="外送" ? `🛵 外送\n地址：${order.address||"-"}` : "🏪 門市自取",
-    `姓名：${order.name}`,
-    `電話：${order.phone}`,
-    `時間：${order.pickup}`,
-    order.paymentMethod==="LINE Pay" ? "付款：LINE Pay（已付款）" : "付款：現場付款",
-    "",
-    ...itemLines,
-    "",
-    `💰 總金額：$${order.total}`,
-    "",
-    "店家確認後會再由官方帳號通知您。"
-  ].join("\\n");
-}
-
-async function notifyCustomerOrderCreated(order){
-  if(!order?.lineUserId){
-    console.warn("[LINE] skip order receipt: missing lineUserId",{orderId:order?.id});
-    return false;
-  }
-  if(!LINE_CHANNEL_ACCESS_TOKEN){
-    console.warn("[LINE] skip order receipt: missing channel access token",{orderId:order?.id});
-    return false;
-  }
-  try{
-    await pushLineMessage(order.lineUserId,customerReceiptMessage(order));
-    console.log("[LINE] order receipt push success",{orderId:order.id});
-    return true;
-  }catch(e){
-    console.error("[LINE] order receipt push failed",{orderId:order.id,message:e?.message});
-    return false;
-  }
-}
-
 function customerStatusMessage(order,status){
   const time=String(order.pickup||"").includes("T")
     ? String(order.pickup).split("T")[1].slice(0,5)
@@ -343,6 +275,41 @@ async function notifyCustomerForStatus(order,status){
   }
 }
 
+
+function customerPaidReceipt(order){
+  const items=(order.items||[]).map((x,i)=>{
+    const tops=(x.tops||x.addons||[]).map(t=>typeof t==="string"?t:t?.name).filter(Boolean);
+    return `${i+1}. ${x.name||x.title||"品項"}${x.sweet?`｜${x.sweet}`:""}${x.ice?`｜${x.ice}`:""}${tops.length?`｜加料：${tops.join("、")}`:""}`;
+  });
+  return [
+    "✅ LINE Pay 付款成功｜訂單已收到",
+    `訂單編號：${order.id}`,
+    order.method==="外送"?`🛵 外送\n地址：${order.address||"-"}`:"🏪 門市自取",
+    `姓名：${order.name}`,
+    `時間：${order.pickup}`,
+    "",
+    ...items,
+    "",
+    `💰 已付款：$${order.total}`,
+    "店家接單後會再由官方帳號通知您。"
+  ].join("\\n");
+}
+
+async function pushPaidReceipt(order){
+  if(!order?.lineUserId){
+    console.warn("[LINEPAY] Official push skipped: no saved lineUserId",{orderId:order?.id});
+    return false;
+  }
+  try{
+    await pushLineMessage(order.lineUserId,customerPaidReceipt(order));
+    console.log("[LINEPAY] Official paid receipt sent",{orderId:order.id});
+    return true;
+  }catch(e){
+    console.error("[LINEPAY] Official paid receipt failed",{orderId:order.id,message:e?.message});
+    return false;
+  }
+}
+
 function createPaidOrderFromPending(orderId,pending,transactionId){
   const existing=readOrders().find(x=>x.id===orderId);
   if(existing) return existing;
@@ -372,17 +339,6 @@ function createPaidOrderFromPending(orderId,pending,transactionId){
   io.emit("new-order",order);
   return order;
 }
-
-
-app.get("/api/line/diagnostics",(req,res)=>{
-  res.json({
-    ok:true,
-    messagingConfigured:Boolean(LINE_CHANNEL_ACCESS_TOKEN),
-    webhookSecretConfigured:Boolean(LINE_CHANNEL_SECRET),
-    loginChannelId:LINE_LOGIN_CHANNEL_ID,
-    notifyTargetConfigured:Boolean(LINE_NOTIFY_TARGET)
-  });
-});
 
 app.get("/api/health",(req,res)=>res.json({ok:true,service:"yipin-order",lineConfigured:Boolean(LINE_CHANNEL_ACCESS_TOKEN&&LINE_CHANNEL_SECRET)}));
 
@@ -439,8 +395,13 @@ app.post("/api/linepay/request",async(req,res)=>{
   console.log("[LINEPAY] request start",{orderId,total:payload.total,method:payload.method});
 
   try{
+    // IMPORTANT: resolve customer LINE userId BEFORE redirecting to LINE Pay.
+    // The callback must not depend on LIFF/browser state after payment.
     const lineUserId=await resolveLineUserId(payload.lineIdToken,payload.lineAccessToken);
-    console.log("[LINEPAY] LINE customer context",{orderId,hasLineUserId:Boolean(lineUserId)});
+    console.log("[LINEPAY] customer captured before redirect",{
+      orderId,
+      hasLineUserId:Boolean(lineUserId)
+    });
 
     const result=await requestLinePayV4("/v4/payments/request",requestBody);
 
@@ -464,11 +425,14 @@ app.post("/api/linepay/request",async(req,res)=>{
     }
 
     const pending=readLinePayPending();
+    const pendingPayload={...payload};
+    delete pendingPayload.lineIdToken;
+    delete pendingPayload.lineAccessToken;
     pending[orderId]={
       orderId,
       transactionId,
-      payload,
-      lineUserId,
+      payload:pendingPayload,
+      lineUserId:String(lineUserId||""),
       createdAt:Date.now()
     };
     writeLinePayPending(pending);
@@ -539,8 +503,10 @@ app.get("/api/linepay/confirm",async(req,res)=>{
     delete pendingStore[orderId];
     writeLinePayPending(pendingStore);
 
-    console.log("[LINEPAY] confirm success",{orderId,transactionId,total:order.total});
-    await notifyCustomerOrderCreated(order);
+    console.log("[LINEPAY] confirm success",{
+      orderId,transactionId,total:order.total,hasLineUserId:Boolean(order.lineUserId)
+    });
+    await pushPaidReceipt(order);
     res.redirect(`${BASE_URL}/?linepay=success&orderId=${encodeURIComponent(orderId)}`);
   }catch(e){
     console.error("[LINEPAY] confirm exception",{
@@ -604,7 +570,6 @@ app.post("/api/orders",async(req,res)=>{
     return res.status(400).json({error:"請填寫外送地址"});
 
   const lineUserId=await resolveLineUserId(o.lineIdToken,o.lineAccessToken);
-  console.log("[ORDER] LINE customer context",{hasLineUserId:Boolean(lineUserId)});
 
   const order={
     id:id(),
@@ -627,8 +592,7 @@ app.post("/api/orders",async(req,res)=>{
   orders.unshift(order);
   writeOrders(orders);
   io.emit("new-order",order);
-  const lineReceiptSent=await notifyCustomerOrderCreated(order);
-  res.json({...order,lineReceiptSent});
+  res.json(order);
 });
 
 app.get("/api/orders/:id",(req,res)=>{const o=readOrders().find(x=>x.id===req.params.id);if(!o)return res.status(404).json({error:"找不到訂單"});res.json({id:o.id,status:o.status,pickup:o.pickup,total:o.total,createdAt:o.createdAt})});
