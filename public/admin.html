@@ -60,12 +60,7 @@ main{max-width:760px;margin:auto;padding:10px 10px 28px}
 .card.new{border-left:5px solid var(--red)}
 .card.accepted{border-left:5px solid var(--green2)}
 .card.making{border-left:5px solid var(--orange)}
-.card.done{
-  opacity:1;
-  background:#fff;
-  border:1px solid #dfe6e0;
-  border-left:5px solid #4d6f52;
-}
+
 .headrow{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .order-id{font-weight:950;color:var(--green);font-size:15px}
 .timebig{font-weight:950;font-size:20px;white-space:nowrap}
@@ -98,33 +93,100 @@ main{max-width:760px;margin:auto;padding:10px 10px 28px}
   margin:10px 0;background:#eef5ef;border:1px solid #dce7de;color:#3d5f4b;border-radius:12px;
   padding:10px 12px;font-size:12px;line-height:1.5
 }
-
-/* ===== 已完成訂單：高對比清晰版 ===== */
-.card.done .order-id{color:#07502f}
-.card.done .timebig{color:#243029}
-.card.done .small{color:#59635c}
-.card.done .customer{color:#243029}
-.card.done .customer b{color:#243029}
-.card.done .customer a{color:#07502f}
-.card.done .addressbox{
-  background:#faf7ef;
-  color:#243029;
-  border:1px solid #eee6d4;
-}
-.card.done .item{border-bottom:1px dashed #d9dfda}
-.card.done .item b{color:#243029}
-.card.done .sub{color:#59635c}
-.card.done .total{color:#07502f}
-.card.done .pill.cash{background:#fff5df;color:#805306}
-.card.done .pill.pay{background:#eaf6ee;color:#0d5a2f}
-.card.done .pill.delivery{background:#fff0e8;color:#914313}
-.card.done .pill.pickup{background:#edf3ff;color:#31537d}
-
 @media(min-width:700px){
   main{max-width:1100px}
   .order-list{grid-template-columns:repeat(2,minmax(0,1fr))}
   .tabs{top:61px}
 }
+
+/* ===== 高對比清晰版 v3 ===== */
+.card{
+  background:#ffffff !important;
+  color:#171c19 !important;
+  border:1px solid #d7dfd9 !important;
+  box-shadow:0 4px 18px rgba(0,0,0,.07) !important;
+  overflow:hidden !important;
+}
+.card.done{
+  opacity:1 !important;
+  background:#ffffff !important;
+  color:#171c19 !important;
+  border-left:5px solid #07502f !important;
+}
+.card .order-id{
+  color:#07502f !important;
+  font-weight:950 !important;
+}
+.card .timebig{
+  color:#171c19 !important;
+}
+.card .small{
+  color:#5e6761 !important;
+}
+.card .customer,
+.card .customer b{
+  color:#171c19 !important;
+}
+.card .customer a{
+  color:#07502f !important;
+}
+.card .addressbox{
+  background:#faf8f1 !important;
+  color:#171c19 !important;
+  border:1px solid #e5dfcf !important;
+}
+.card .items{
+  border-top:1px solid #d9dfda !important;
+}
+.card .item{
+  border-bottom:1px dashed #cfd7d1 !important;
+}
+.card .item b{
+  color:#111713 !important;
+  font-weight:950 !important;
+}
+.card .sub{
+  color:#4f5853 !important;
+  opacity:1 !important;
+}
+.card .footerrow{
+  border-top:1px solid #e1e6e2 !important;
+  padding-top:12px !important;
+}
+.card .total{
+  color:#07502f !important;
+  font-weight:950 !important;
+}
+.card .pill.pay{
+  background:#eaf6ee !important;
+  color:#0b5b31 !important;
+  border:1px solid #b8ddc4 !important;
+}
+.card .pill.cash{
+  background:#fff4d9 !important;
+  color:#7b5205 !important;
+  border:1px solid #ead49b !important;
+}
+.card .pill.delivery{
+  background:#fff0e8 !important;
+  color:#9a3f10 !important;
+  border:1px solid #efc5b0 !important;
+}
+.card .pill.pickup{
+  background:#edf3ff !important;
+  color:#264d7a !important;
+  border:1px solid #c7d8ee !important;
+}
+@media(max-width:560px){
+  .card{padding:16px !important;border-radius:18px !important}
+  .card .order-id{font-size:18px !important}
+  .card .timebig{font-size:20px !important}
+  .card .customer{font-size:15px !important}
+  .card .item b{font-size:16px !important}
+  .card .sub{font-size:13px !important;line-height:1.65 !important}
+  .card .total{font-size:25px !important}
+}
+
 </style>
 </head>
 <body>
@@ -388,7 +450,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js').catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js?v=3').catch(()=>{}));
 }
 </script>
 </body>
