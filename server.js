@@ -62,18 +62,33 @@ function sharedCartId() {
   return crypto.randomBytes(6).toString("base64url");
 }
 
+
+function sanitizeSharedItem(item) {
+  if (!item || typeof item !== "object") return null;
+
+  const tops = Array.isArray(item.tops)
+    ? item.tops.slice(0, 10).map(t => ({
+        name: String(t?.name || "").slice(0, 40),
+        p: Number(t?.p || 0)
+      })).filter(t => t.name && Number.isFinite(t.p))
+    : [];
+
+  const result = {
+    sharedItemId: String(item.sharedItemId || crypto.randomBytes(6).toString("hex")).slice(0, 40),
+    name: String(item.name || "").slice(0, 80),
+    price: Number(item.price || 0),
+    sweet: String(item.sweet || "").slice(0, 40),
+    ice: String(item.ice || "").slice(0, 40),
+    tops
+  };
+
+  if (!result.name || !Number.isFinite(result.price) || result.price < 0) return null;
+  return result;
+}
+
 function sanitizeSharedCart(cart) {
-  if (!Array.isArray(cart) || !cart.length || cart.length > 100) return null;
-  return cart.map(x => ({
-    name: String(x?.name || "").slice(0, 80),
-    price: Number(x?.price || 0),
-    sweet: String(x?.sweet || "").slice(0, 30),
-    ice: String(x?.ice || "").slice(0, 30),
-    tops: Array.isArray(x?.tops) ? x.tops.slice(0, 20).map(t => ({
-      name: String(t?.name || "").slice(0, 40),
-      p: Number(t?.p || 0)
-    })) : []
-  })).filter(x => x.name && Number.isFinite(x.price) && x.price >= 0);
+  if (!Array.isArray(cart)) return [];
+  return cart.slice(0, 100).map(sanitizeSharedItem).filter(Boolean);
 }
 
 function id() {
@@ -331,44 +346,119 @@ app.post("/webhook", async (req, res) => {
 });
 
 // 分享購物車：建立短連結，讓朋友接著點餐。
+
 app.post("/api/shared-carts", (req, res) => {
   const cart = sanitizeSharedCart(req.body?.cart);
-  if (!cart || !cart.length) return res.status(400).json({ error: "購物車是空的或資料格式錯誤" });
+  if (!cart.length) return res.status(400).json({ error: "購物車是空的" });
 
   const store = readSharedCarts();
   const now = Date.now();
-  // 清除超過 7 天的分享資料。
+
   for (const [key, value] of Object.entries(store)) {
-    if (!value?.createdAt || now - Number(value.createdAt) > 7 * 24 * 60 * 60 * 1000) delete store[key];
+    if (now - Number(value?.createdAt || 0) > 7 * 24 * 60 * 60 * 1000) {
+      delete store[key];
+    }
   }
+
   const shareId = sharedCartId();
-  store[shareId] = { cart, createdAt: now };
+  store[shareId] = {
+    cart,
+    createdAt: now,
+    updatedAt: now,
+    version: 1
+  };
   writeSharedCarts(store);
-  res.json({ ok: true, shareId, url: `${baseUrl(req)}/?share=${encodeURIComponent(shareId)}` });
+
+  res.json({
+    ok: true,
+    shareId,
+    cart,
+    version: 1,
+    url: `${baseUrl(req)}/?share=${encodeURIComponent(shareId)}`
+  });
 });
 
 app.get("/api/shared-carts/:id", (req, res) => {
   const store = readSharedCarts();
-  const shared = store[String(req.params.id || "")];
-  if (!shared) return res.status(404).json({ error: "找不到分享購物車，可能已失效" });
-  if (Date.now() - Number(shared.createdAt || 0) > 7 * 24 * 60 * 60 * 1000) {
-    delete store[String(req.params.id || "")];
-    writeSharedCarts(store);
-    return res.status(410).json({ error: "分享購物車已超過 7 天失效" });
-  }
-  res.json({ cart: shared.cart, createdAt: shared.createdAt });
-});
+  const shareId = String(req.params.id || "");
+  const shared = store[shareId];
 
-app.get("/api/health", (req, res) => {
+  if (!shared) return res.status(404).json({ error: "找不到團購單，可能已失效" });
+
+  if (Date.now() - Number(shared.createdAt || 0) > 7 * 24 * 60 * 60 * 1000) {
+    delete store[shareId];
+    writeSharedCarts(store);
+    return res.status(410).json({ error: "這張團購單已過期" });
+  }
+
   res.json({
-    ok: true,
-    service: "yipin-order",
-    linePayConfigured: Boolean(LINEPAY_CHANNEL_ID && LINEPAY_CHANNEL_SECRET),
-    lineNotifyConfigured: Boolean(LINE_CHANNEL_ACCESS_TOKEN && LINE_CHANNEL_SECRET && LINE_NOTIFY_TARGET)
+    shareId,
+    cart: shared.cart || [],
+    version: Number(shared.version || 1),
+    createdAt: shared.createdAt,
+    updatedAt: shared.updatedAt || shared.createdAt
   });
 });
 
-// 現場付款：直接建立訂單
+app.post("/api/shared-carts/:id/items", (req, res) => {
+  const shareId = String(req.params.id || "");
+  const store = readSharedCarts();
+  const shared = store[shareId];
+
+  if (!shared) return res.status(404).json({ error: "找不到團購單" });
+
+  const item = sanitizeSharedItem(req.body?.item);
+  if (!item) return res.status(400).json({ error: "品項資料錯誤" });
+
+  shared.cart = Array.isArray(shared.cart) ? shared.cart : [];
+  if (shared.cart.length >= 100) return res.status(400).json({ error: "團購單品項太多" });
+
+  shared.cart.push(item);
+  shared.version = Number(shared.version || 0) + 1;
+  shared.updatedAt = Date.now();
+  writeSharedCarts(store);
+
+  const payload = {
+    shareId,
+    cart: shared.cart,
+    version: shared.version,
+    updatedAt: shared.updatedAt
+  };
+  io.to(`shared-cart:${shareId}`).emit("shared-cart-updated", payload);
+
+  res.json({ ok: true, ...payload, item });
+});
+
+app.delete("/api/shared-carts/:id/items/:itemId", (req, res) => {
+  const shareId = String(req.params.id || "");
+  const itemId = String(req.params.itemId || "");
+  const store = readSharedCarts();
+  const shared = store[shareId];
+
+  if (!shared) return res.status(404).json({ error: "找不到團購單" });
+
+  const before = Array.isArray(shared.cart) ? shared.cart.length : 0;
+  shared.cart = (shared.cart || []).filter(x => String(x.sharedItemId || "") !== itemId);
+
+  if (shared.cart.length === before) {
+    return res.status(404).json({ error: "找不到這個品項" });
+  }
+
+  shared.version = Number(shared.version || 0) + 1;
+  shared.updatedAt = Date.now();
+  writeSharedCarts(store);
+
+  const payload = {
+    shareId,
+    cart: shared.cart,
+    version: shared.version,
+    updatedAt: shared.updatedAt
+  };
+  io.to(`shared-cart:${shareId}`).emit("shared-cart-updated", payload);
+
+  res.json({ ok: true, ...payload });
+});
+
 app.post("/api/orders", async (req, res) => {
   const parsed = normalizeOrderInput({ ...req.body, paymentMethod: "現場付款" });
   if (parsed.error) return res.status(400).json({ error: parsed.error });
@@ -586,6 +676,18 @@ app.post("/api/admin/orders/:id/status", (req, res) => {
 
 io.on("connection", socket => {
   socket.emit("server-ready", { at: new Date().toISOString() });
+
+  socket.on("join-shared-cart", shareId => {
+    const id = String(shareId || "").trim();
+    if (!id || id.length > 80) return;
+    socket.join(`shared-cart:${id}`);
+  });
+
+  socket.on("leave-shared-cart", shareId => {
+    const id = String(shareId || "").trim();
+    if (!id || id.length > 80) return;
+    socket.leave(`shared-cart:${id}`);
+  });
 });
 
 server.listen(PORT, () => {
