@@ -17,8 +17,33 @@ const SEND_LIFF_ID="2011256472-Tj0ebhYR";
 const msg=document.getElementById("msg");
 const retry=document.getElementById("retry");
 
+function getTokenFromLiffUrl(){
+  const qs=new URLSearchParams(location.search);
+
+  // 一般瀏覽器直接開：?token=xxxx
+  let token=qs.get("token")||"";
+  if(token) return token;
+
+  // 經由 https://liff.line.me/{LIFF_ID}/?token=xxxx 開啟時，
+  // LINE 會把 LIFF URL 後面的 path/query 包進 liff.state。
+  const state=qs.get("liff.state")||"";
+  if(state){
+    try{
+      const decoded=decodeURIComponent(state);
+      const qIndex=decoded.indexOf("?");
+      const stateQuery=qIndex>=0 ? decoded.slice(qIndex+1) : decoded.replace(/^\?/,"");
+      token=new URLSearchParams(stateQuery).get("token")||"";
+      if(token) return token;
+    }catch(e){
+      console.warn("liff.state parse failed",e);
+    }
+  }
+
+  return "";
+}
+
 async function getPayload(){
-  const token=new URLSearchParams(location.search).get("token")||"";
+  const token=getTokenFromLiffUrl();
   if(!token) throw new Error("缺少訂單回傳識別碼");
   const r=await fetch("/api/line-send-token/"+encodeURIComponent(token),{cache:"no-store"});
   const data=await r.json().catch(()=>({}));
