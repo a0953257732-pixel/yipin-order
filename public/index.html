@@ -135,7 +135,7 @@ async function initLiff(){
 
 function buildCompactOrderText(order,payload){
   const lines = [
-    "一品現泡茶｜新生南店｜訂單成立",
+    "【客人送出訂單】一品現泡茶｜新生南店",
     `訂單編號：${safeText(order.id)}`,
     `取餐方式：${payload.method === "外送" ? "外送" : "門市自取"}`,
     `姓名：${safeText(payload.name)}`,
@@ -181,7 +181,9 @@ async function sendOrderToCurrentLineChat(order,payload){
       if(!ok) throw new Error("LIFF 初始化失敗");
     }
     if(!liff.isInClient()) throw new Error("請從 LINE App 內的官方帳號點餐頁送出訂單");
-    if(typeof liff.sendMessages!=="function") throw new Error("目前 LIFF 不支援訊息回傳");
+    if(typeof liff.sendMessages!=="function") throw new Error("目前 LIFF 不支援 sendMessages，請確認主點餐 LIFF 已勾選 chat_message.write");
+    const ctx = typeof liff.getContext==="function" ? liff.getContext() : null;
+    if(!ctx) throw new Error("無法取得 LINE 聊天室 context，請從官方帳號聊天室內的「點餐」開啟");
 
     const text=buildCompactOrderText(order,payload);
     await liff.sendMessages([{type:"text",text}]);
@@ -191,7 +193,7 @@ async function sendOrderToCurrentLineChat(order,payload){
     cart=[];
     update();
 
-    if(status) status.textContent="✅ 訂單已以你的 LINE 身分回傳到一品現泡茶官方帳號聊天室。";
+    if(status) status.textContent="✅ 已由你的 LINE 帳號把訂單送進一品現泡茶官方帳號聊天室。";
     if(retry) retry.classList.add("hidden");
     return true;
   }catch(e){
