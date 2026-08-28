@@ -18,10 +18,6 @@ const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "";
 const LINE_NOTIFY_TARGET = process.env.LINE_NOTIFY_TARGET || "";
 const LINE_LOGIN_CHANNEL_ID = process.env.LINE_LOGIN_CHANNEL_ID || "2011256472";
-const LINE_PENDING_MESSAGES = new Map();
-const LINE_PENDING_TTL_MS = 10 * 60 * 1000;
-const LINE_SEND_TOKENS = new Map();
-const LINE_SEND_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 fs.mkdirSync(DATA_DIR,{recursive:true});
 if(!fs.existsSync(DB)) fs.writeFileSync(DB,"[]");
@@ -49,27 +45,24 @@ function sanitizeSharedCart(cart){return Array.isArray(cart)?cart.slice(0,100).m
 
 async function verifyLineIdToken(idToken){
   if(!idToken) return null;
-  const body=new URLSearchParams({id_token:String(idToken),client_id:LINE_LOGIN_CHANNEL_ID});
+  const body=new URLSearchParams({
+    id_token:String(idToken),
+    client_id:LINE_LOGIN_CHANNEL_ID
+  });
+
   const r=await fetch("https://api.line.me/oauth2/v2.1/verify",{
     method:"POST",
     headers:{"Content-Type":"application/x-www-form-urlencoded"},
     body
   });
+
   if(!r.ok){
     console.error("LINE ID token verify failed:",r.status,await r.text());
     return null;
   }
+
   const data=await r.json();
   return data?.sub ? String(data.sub) : null;
-}
-
-function cleanupPendingLineMessages(){
-  const now=Date.now();
-  for(const [userId,data] of LINE_PENDING_MESSAGES.entries()){
-    if(!data || now-Number(data.createdAt||0)>LINE_PENDING_TTL_MS){
-      LINE_PENDING_MESSAGES.delete(userId);
-    }
-  }
 }
 
 function verifyLineSignature(req){
@@ -113,26 +106,6 @@ app.post("/webhook",async(req,res)=>{
 });
 
 
-app.post("/api/line-send-pending",async(req,res)=>{
-  cleanupPendingLineMessages();
-  const text=String(req.body?.text||"").trim();
-  const userId=await verifyLineIdToken(req.body?.idToken);
-  if(!userId) return res.status(401).json({error:"無法確認 LINE 使用者，請從 LINE 重新開啟點餐頁"});
-  if(!text) return res.status(400).json({error:"缺少訂單文字"});
-  if(text.length>4500) return res.status(400).json({error:"訂單文字過長"});
-  LINE_PENDING_MESSAGES.set(userId,{text,createdAt:Date.now()});
-  res.json({ok:true});
-});
-
-app.post("/api/line-send-pending/take",async(req,res)=>{
-  cleanupPendingLineMessages();
-  const userId=await verifyLineIdToken(req.body?.idToken);
-  if(!userId) return res.status(401).json({error:"無法確認 LINE 使用者"});
-  const data=LINE_PENDING_MESSAGES.get(userId);
-  if(!data) return res.status(404).json({error:"找不到待回傳訂單，請回點餐頁重新送出"});
-  LINE_PENDING_MESSAGES.delete(userId);
-  res.json({ok:true,text:data.text});
-});
 
 app.post("/api/shared-carts",(req,res)=>{
   const cart=sanitizeSharedCart(req.body?.cart); if(!cart.length)return res.status(400).json({error:"購物車是空的"});
@@ -158,14 +131,80 @@ app.delete("/api/shared-carts/:id/items/:itemId",(req,res)=>{
   const payload={shareId:req.params.id,cart:x.cart,version:x.version,updatedAt:x.updatedAt};io.to(`shared-cart:${req.params.id}`).emit("shared-cart-updated",payload);res.json({ok:true,...payload});
 });
 
-app.post("/api/orders",(req,res)=>{
+app.post("/api/orders",async(req,res)=>{
   const o=req.body||{},method=o.method==="外送"?"外送":"自取",total=Number(o.total||0);
-  if(!o.name||!o.phone||!o.pickup||!Array.isArray(o.items)||!o.items.length)return res.status(400).json({error:"缺少必要訂單資料"});
-  if(method==="外送"&&total<200)return res.status(400).json({error:"外送訂單需滿 $200"});
-  if(method==="外送"&&!String(o.address||"").trim())return res.status(400).json({error:"請填寫外送地址"});
-  const order={id:id(),createdAt:new Date().toISOString(),status:"new",name:String(o.name).slice(0,40),phone:String(o.phone).slice(0,30),pickup:o.pickup,address:String(o.address||"").slice(0,160),remark:String(o.remark||"").slice(0,300),method,items:o.items,total};
-  const orders=readOrders();orders.unshift(order);writeOrders(orders);io.emit("new-order",order);res.json(order);
-  if(LINE_NOTIFY_TARGET&&LINE_CHANNEL_ACCESS_TOKEN)pushLineMessage(LINE_NOTIFY_TARGET,formatOrderForLine(order)).catch(e=>console.error("LINE order push failed:",e.message));
+
+  if(!o.name||!o.phone||!o.pickup||!Array.isArray(o.items)||!o.items.length)
+    return res.status(400).json({error:"缺少必要訂單資料"});
+  if(method==="外送"&&total<200)
+    return res.status(400).json({error:"外送訂單需滿 $200"});
+  if(method==="外送"&&!String(o.address||"").trim())
+    return res.status(400).json({error:"請填寫外送地址"});
+
+  const order={
+    id:id(),
+    createdAt:new Date().toISOString(),
+    status:"new",
+    name:String(o.name).slice(0,40),
+    phone:String(o.phone).slice(0,30),
+    pickup:o.pickup,
+    address:String(o.address||"").slice(0,160),
+    remark:String(o.remark||"").slice(0,300),
+    method,
+    paymentMethod:String(o.paymentMethod||"現場付款").slice(0,30),
+    items:o.items,
+    total
+  };
+
+  const orders=readOrders();
+  orders.unshift(order);
+  writeOrders(orders);
+  io.emit("new-order",order);
+
+  let linePushOk=false;
+  let linePushError="";
+
+  // 直接用主點餐 LIFF 的 ID token 驗證是哪一位 LINE 使用者，
+  // 再由官方帳號 Messaging API 推送完整訂單給該使用者。
+  try{
+    const userId=await verifyLineIdToken(o.lineIdToken);
+    if(!userId){
+      linePushError="無法確認 LINE 使用者，請從一品官方帳號重新開啟點餐頁";
+    }else if(!LINE_CHANNEL_ACCESS_TOKEN){
+      linePushError="LINE_CHANNEL_ACCESS_TOKEN 尚未設定";
+    }else{
+      await pushLineMessage(userId,formatOrderForLine(order));
+      linePushOk=true;
+    }
+  }catch(err){
+    linePushError="官方帳號訂單回傳失敗";
+    console.error("Customer LINE order push failed:",err.message);
+  }
+
+  // 原本固定通知對象仍保留（若有設定）
+  if(LINE_NOTIFY_TARGET&&LINE_CHANNEL_ACCESS_TOKEN){
+    pushLineMessage(LINE_NOTIFY_TARGET,formatOrderForLine(order))
+      .catch(e=>console.error("LINE order push failed:",e.message));
+  }
+
+  res.json({...order,linePushOk,linePushError});
+});
+
+app.post("/api/orders/:id/line-push",async(req,res)=>{
+  const order=readOrders().find(x=>x.id===req.params.id);
+  if(!order) return res.status(404).json({error:"找不到訂單"});
+
+  const userId=await verifyLineIdToken(req.body?.idToken);
+  if(!userId) return res.status(401).json({error:"無法確認 LINE 使用者"});
+  if(!LINE_CHANNEL_ACCESS_TOKEN) return res.status(500).json({error:"LINE_CHANNEL_ACCESS_TOKEN 尚未設定"});
+
+  try{
+    await pushLineMessage(userId,formatOrderForLine(order));
+    res.json({ok:true});
+  }catch(err){
+    console.error("Retry customer LINE push failed:",err.message);
+    res.status(500).json({error:"官方帳號訂單回傳失敗"});
+  }
 });
 
 app.get("/api/orders/:id",(req,res)=>{const o=readOrders().find(x=>x.id===req.params.id);if(!o)return res.status(404).json({error:"找不到訂單"});res.json({id:o.id,status:o.status,pickup:o.pickup,total:o.total,createdAt:o.createdAt})});
