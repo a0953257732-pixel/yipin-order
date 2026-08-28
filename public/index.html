@@ -76,7 +76,6 @@ async function initLiff(){
     liffReady = true;
     lineIdToken = (typeof liff.getIDToken === "function" ? (liff.getIDToken() || "") : "");
     lineAccessToken = (typeof liff.getAccessToken === "function" ? (liff.getAccessToken() || "") : "");
-    console.log("[LIFF] auth context",{hasIdToken:Boolean(lineIdToken),hasAccessToken:Boolean(lineAccessToken),inClient:typeof liff.isInClient==="function"?liff.isInClient():false});
     renderLiffDiag();
     return true;
   }catch(err){
@@ -443,9 +442,7 @@ async function submitOrder(){
     try{
       lineIdToken=(typeof liff.getIDToken==="function"?(liff.getIDToken()||""):"");
       lineAccessToken=(typeof liff.getAccessToken==="function"?(liff.getAccessToken()||""):"");
-    }catch(e){
-      console.warn("[LIFF] token refresh failed",e);
-    }
+    }catch(e){ console.warn("[LIFF] token refresh failed",e); }
   }
 
   const payload={
