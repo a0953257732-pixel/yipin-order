@@ -52,6 +52,7 @@ main{max-width:900px;margin:18px auto 0;padding:0 18px 120px;background:rgba(255
 <script src="/socket.io/socket.io.js"></script><script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
 const LIFF_ID = "2011256472-3TidlkYv";
+const LINE_SEND_LIFF_ID = "2011256472-Tj0ebhYR";
 // 此版本刻意不使用 liff.sendMessages()，以支援 LIFF 瀏覽器最小化。
 let liffReady = false;
 let lineIdToken = "";
@@ -118,20 +119,39 @@ function buildCompactOrderText(order,payload){
   return lines.join("\n").slice(0, 4500);
 }
 
+async function openLineSender(order,payload){
+  const text=buildCompactOrderText(order,payload);
+
+  if(!lineIdToken){
+    await initLiff();
+  }
+  if(!lineIdToken){
+    throw new Error("無法取得 LINE 登入識別，請從 LINE 官方帳號重新開啟點餐頁");
+  }
+
+  const r=await fetch("/api/line-send-pending",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({text,idToken:lineIdToken})
+  });
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok){
+    throw new Error(data.error||"無法建立 LINE 訂單回傳資料");
+  }
+
+  location.href=`https://liff.line.me/${LINE_SEND_LIFF_ID}`;
+}
+
 async function sendOrderToCurrentLineChat(order,payload){
   const status=document.getElementById("lineSendStatus");
-  if(status) status.textContent="✅ 訂單已成立，官方帳號會傳送完整訂單明細。";
+  if(status) status.textContent="正在開啟 LINE 訂單回傳…";
+  await openLineSender(order,payload);
   return true;
 }
 
-async function retryLineSend(){ return true; }
-
-function saveOrderDraft(){
-  try{
-    localStorage.setItem(DRAFT_KEY,JSON.stringify(getFormSnapshot()));
-  }catch(e){
-    console.warn("save draft failed",e);
-  }
+async function retryLineSend(){
+  if(!lastLineOrder) return alert("找不到可重新回傳的訂單");
+  await sendOrderToCurrentLineChat(lastLineOrder.order,lastLineOrder.payload);
 }
 
 function clearOrderDraft(){
@@ -500,10 +520,10 @@ async function submitOrder(){
     renderStatus(o.status||'new');
     closeM('checkoutModal');
     document.getElementById('successModal').classList.add('show');
-    await sendOrderToCurrentLineChat(o,lastLineOrder.payload);
     cart=[];
     update();
     clearOrderDraft();
+    await sendOrderToCurrentLineChat(o,lastLineOrder.payload);
 
   }catch(e){
     alert(e.message||'送單失敗，請稍後再試');
