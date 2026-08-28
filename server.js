@@ -174,6 +174,7 @@ function normalizeCheckoutPayload(o){
     remark:String(o.remark||"").slice(0,300),
     method,
     paymentMethod:"LINE Pay",
+    lineIdToken:String(o.lineIdToken||""),
     items:o.items,
     total
   };
@@ -190,6 +191,63 @@ function linePayProducts(items){
       price:unitPrice
     };
   });
+}
+
+
+function customerStatusMessage(order,status){
+  const time=String(order.pickup||"").includes("T")
+    ? String(order.pickup).split("T")[1].slice(0,5)
+    : String(order.pickup||"");
+  const method=order.method==="外送"?"外送":"門市自取";
+
+  if(status==="accepted"){
+    return [
+      "✅ 一品現泡茶｜店家已接單",
+      `訂單編號：${order.id}`,
+      `${method}時間：${time}`,
+      `金額：$${order.total}`,
+      "",
+      "店家已確認您的訂單，會開始為您準備 🧋"
+    ].join("\n");
+  }
+  if(status==="making"){
+    return [
+      "🥤 一品現泡茶｜製作中",
+      `訂單編號：${order.id}`,
+      "您的飲料正在製作中，請稍候。"
+    ].join("\n");
+  }
+  if(status==="done"){
+    return [
+      "✅ 一品現泡茶｜訂單完成",
+      `訂單編號：${order.id}`,
+      order.method==="外送"
+        ? "您的訂單已完成，將依安排配送。"
+        : "您的飲料已完成，可以前來取餐囉！"
+    ].join("\n");
+  }
+  if(status==="cancelled"){
+    return [
+      "⚠️ 一品現泡茶｜訂單狀態通知",
+      `訂單編號：${order.id}`,
+      "此訂單已取消。如有疑問請直接聯繫門市。"
+    ].join("\n");
+  }
+  return "";
+}
+
+async function notifyCustomerForStatus(order,status){
+  if(!order?.lineUserId || !LINE_CHANNEL_ACCESS_TOKEN) return false;
+  const text=customerStatusMessage(order,status);
+  if(!text) return false;
+  try{
+    await pushLineMessage(order.lineUserId,text);
+    console.log("[ORDER] customer status push success",{orderId:order.id,status});
+    return true;
+  }catch(e){
+    console.error("[ORDER] customer status push failed",{orderId:order.id,status,message:e?.message});
+    return false;
+  }
 }
 
 function createPaidOrderFromPending(orderId,pending,transactionId){
@@ -210,6 +268,7 @@ function createPaidOrderFromPending(orderId,pending,transactionId){
     paymentMethod:"LINE Pay",
     paymentStatus:"paid",
     linePayTransactionId:String(transactionId||pending.transactionId||""),
+    lineUserId:String(pending.lineUserId||""),
     items:p.items,
     total:p.total
   };
@@ -276,6 +335,15 @@ app.post("/api/linepay/request",async(req,res)=>{
   console.log("[LINEPAY] request start",{orderId,total:payload.total,method:payload.method});
 
   try{
+    let lineUserId="";
+    if(payload.lineIdToken){
+      try{
+        lineUserId=await verifyLineIdToken(payload.lineIdToken)||"";
+      }catch(e){
+        console.error("[LINEPAY] LINE user verify failed",{orderId,message:e?.message});
+      }
+    }
+
     const result=await requestLinePayV4("/v4/payments/request",requestBody);
 
     if(result?.returnCode!=="0000"){
@@ -302,6 +370,7 @@ app.post("/api/linepay/request",async(req,res)=>{
       orderId,
       transactionId,
       payload,
+      lineUserId,
       createdAt:Date.now()
     };
     writeLinePayPending(pending);
@@ -425,7 +494,7 @@ app.delete("/api/shared-carts/:id/items/:itemId",(req,res)=>{
   const payload={shareId:req.params.id,cart:x.cart,version:x.version,updatedAt:x.updatedAt};io.to(`shared-cart:${req.params.id}`).emit("shared-cart-updated",payload);res.json({ok:true,...payload});
 });
 
-app.post("/api/orders",(req,res)=>{
+app.post("/api/orders",async(req,res)=>{
   const o=req.body||{},method=o.method==="外送"?"外送":"自取",total=Number(o.total||0);
 
   if(!o.name||!o.phone||!o.pickup||!Array.isArray(o.items)||!o.items.length)
@@ -434,6 +503,15 @@ app.post("/api/orders",(req,res)=>{
     return res.status(400).json({error:"外送訂單需滿 $200"});
   if(method==="外送"&&!String(o.address||"").trim())
     return res.status(400).json({error:"請填寫外送地址"});
+
+  let lineUserId="";
+  if(o.lineIdToken){
+    try{
+      lineUserId=await verifyLineIdToken(o.lineIdToken)||"";
+    }catch(e){
+      console.error("[ORDER] LINE user verify failed",e?.message);
+    }
+  }
 
   const order={
     id:id(),
@@ -446,6 +524,8 @@ app.post("/api/orders",(req,res)=>{
     remark:String(o.remark||"").slice(0,300),
     method,
     paymentMethod:String(o.paymentMethod||"現場付款").slice(0,30),
+    paymentStatus:o.paymentMethod==="LINE Pay"?"paid":"unpaid",
+    lineUserId,
     items:o.items,
     total
   };
@@ -454,22 +534,28 @@ app.post("/api/orders",(req,res)=>{
   orders.unshift(order);
   writeOrders(orders);
   io.emit("new-order",order);
-
-  // 重要：這裡只建立訂單，不做任何 Official Account 主動推播。
-  // 訂單文字只由前端 liff.sendMessages() 以客人本人身分送回當前 OA 聊天室。
-
-  // 不再由 Official Account 主動把訂單推給客人。
-  // 完整訂單會由前端 liff.sendMessages() 以客人本人身分傳回官方帳號聊天室。
   res.json(order);
 });
 
 app.get("/api/orders/:id",(req,res)=>{const o=readOrders().find(x=>x.id===req.params.id);if(!o)return res.status(404).json({error:"找不到訂單"});res.json({id:o.id,status:o.status,pickup:o.pickup,total:o.total,createdAt:o.createdAt})});
 app.post("/api/admin/login",(req,res)=>res.json({ok:String(req.body?.pin||"")===ADMIN_PIN}));
 app.get("/api/admin/orders",(req,res)=>res.json(readOrders()));
-app.post("/api/admin/orders/:id/status",(req,res)=>{
-  const allowed=["new","accepted","making","done","cancelled"],status=req.body?.status;if(!allowed.includes(status))return res.status(400).json({error:"無效狀態"});
-  const orders=readOrders(),o=orders.find(x=>x.id===req.params.id);if(!o)return res.status(404).json({error:"找不到訂單"});
-  o.status=status;o.updatedAt=new Date().toISOString();writeOrders(orders);io.emit("order-updated",o);res.json(o);
+app.post("/api/admin/orders/:id/status",async(req,res)=>{
+  const allowed=["new","accepted","making","done","cancelled"];
+  const status=req.body?.status;
+  if(!allowed.includes(status)) return res.status(400).json({error:"無效狀態"});
+
+  const orders=readOrders();
+  const o=orders.find(x=>x.id===req.params.id);
+  if(!o) return res.status(404).json({error:"找不到訂單"});
+
+  o.status=status;
+  o.updatedAt=new Date().toISOString();
+  writeOrders(orders);
+  io.emit("order-updated",o);
+
+  const notified=await notifyCustomerForStatus(o,status);
+  res.json({...o,lineCustomerNotified:notified});
 });
 
 io.on("connection",socket=>{
