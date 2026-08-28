@@ -122,15 +122,20 @@ function buildCompactOrderText(order,payload){
 
 async function openLineSender(order,payload){
   const text=buildCompactOrderText(order,payload);
-  const r=await fetch("/api/line-send-token",{
+  if(!lineIdToken){
+    await initLiff();
+  }
+  if(!lineIdToken) throw new Error("無法取得 LINE 登入識別，請從 LINE 官方帳號重新開啟點餐頁");
+
+  const r=await fetch("/api/line-send-pending",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({text})
+    body:JSON.stringify({text,idToken:lineIdToken})
   });
   const data=await r.json().catch(()=>({}));
-  if(!r.ok || !data.token) throw new Error(data.error||"無法建立 LINE 訂單回傳識別碼");
-  const senderUrl=`https://liff.line.me/${LINE_SEND_LIFF_ID}/?token=${encodeURIComponent(data.token)}`;
-  location.href=senderUrl;
+  if(!r.ok) throw new Error(data.error||"無法建立 LINE 訂單回傳資料");
+
+  location.href=`https://liff.line.me/${LINE_SEND_LIFF_ID}`;
 }
 
 
