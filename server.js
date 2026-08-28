@@ -17,6 +17,8 @@ const SHARED_DB = path.join(DATA_DIR, "shared-carts.json");
 const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "";
 const LINE_NOTIFY_TARGET = process.env.LINE_NOTIFY_TARGET || "";
+const LINE_SEND_TOKENS = new Map();
+const LINE_SEND_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 fs.mkdirSync(DATA_DIR,{recursive:true});
 if(!fs.existsSync(DB)) fs.writeFileSync(DB,"[]");
@@ -80,6 +82,39 @@ app.post("/webhook",async(req,res)=>{
         await replyLineMessage(event.replyToken,"✅ LINE Webhook 已連線成功，可以開始接收網站訂單通知。");
     }catch(e){console.error("LINE webhook event error:",e.message)}
   }
+});
+
+
+function cleanupLineSendTokens(){
+  const now=Date.now();
+  for(const [token,data] of LINE_SEND_TOKENS.entries()){
+    if(!data || now-Number(data.createdAt||0)>LINE_SEND_TOKEN_TTL_MS){
+      LINE_SEND_TOKENS.delete(token);
+    }
+  }
+}
+
+app.post("/api/line-send-token",(req,res)=>{
+  cleanupLineSendTokens();
+  const text=String(req.body?.text||"").trim();
+  if(!text) return res.status(400).json({error:"缺少訂單文字"});
+  if(text.length>4500) return res.status(400).json({error:"訂單文字過長"});
+  const token=crypto.randomBytes(16).toString("hex");
+  LINE_SEND_TOKENS.set(token,{text,createdAt:Date.now()});
+  res.json({ok:true,token});
+});
+
+app.get("/api/line-send-token/:token",(req,res)=>{
+  cleanupLineSendTokens();
+  const token=String(req.params.token||"");
+  const data=LINE_SEND_TOKENS.get(token);
+  if(!data) return res.status(404).json({error:"訂單回傳識別碼已失效，請回點餐頁重新送出"});
+  res.json({ok:true,text:data.text});
+});
+
+app.delete("/api/line-send-token/:token",(req,res)=>{
+  LINE_SEND_TOKENS.delete(String(req.params.token||""));
+  res.json({ok:true});
 });
 
 app.post("/api/shared-carts",(req,res)=>{
