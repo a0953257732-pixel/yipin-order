@@ -19,9 +19,17 @@ const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "";
 const LINE_NOTIFY_TARGET = process.env.LINE_NOTIFY_TARGET || "";
 const LINE_LOGIN_CHANNEL_ID = process.env.LINE_LOGIN_CHANNEL_ID || "2011256472";
 
+// LINE Pay 正式環境（沿用你 Render 現有的 Key 名稱）
+const LINEPAY_CHANNEL_ID = process.env.LINEPAY_CHANNEL_ID || "";
+const LINEPAY_CHANNEL_SECRET = process.env.LINEPAY_CHANNEL_SECRET || "";
+const LINEPAY_API_BASE = "https://api-pay.line.me";
+const BASE_URL = String(process.env.BASE_URL || "https://yipin-order.onrender.com").replace(/\/$/,"");
+const LINEPAY_PENDING_DB = path.join(DATA_DIR, "linepay-pending.json");
+
 fs.mkdirSync(DATA_DIR,{recursive:true});
 if(!fs.existsSync(DB)) fs.writeFileSync(DB,"[]");
 if(!fs.existsSync(SHARED_DB)) fs.writeFileSync(SHARED_DB,"{}");
+if(!fs.existsSync(LINEPAY_PENDING_DB)) fs.writeFileSync(LINEPAY_PENDING_DB,"{}");
 
 app.use(express.json({limit:"1mb",verify:(req,res,buf)=>{req.rawBody=Buffer.from(buf)}}));
 app.use(express.static(path.join(__dirname,"public")));
@@ -32,6 +40,8 @@ function readOrders(){return readJson(DB,[])}
 function writeOrders(x){writeJson(DB,x)}
 function readSharedCarts(){return readJson(SHARED_DB,{})}
 function writeSharedCarts(x){writeJson(SHARED_DB,x)}
+function readLinePayPending(){return readJson(LINEPAY_PENDING_DB,{})}
+function writeLinePayPending(x){writeJson(LINEPAY_PENDING_DB,x)}
 function id(){return "YP"+crypto.randomBytes(4).toString("hex").toUpperCase()}
 function sharedCartId(){return crypto.randomBytes(8).toString("hex")}
 
@@ -89,6 +99,128 @@ function formatOrderForLine(o){
   return ["🔔 一品現泡茶｜新訂單",`訂單編號：${o.id}`,o.method==="外送"?`🛵 外送\n地址：${o.address||"-"}`:"🏪 門市自取",`姓名：${o.name}`,`電話：${o.phone}`,`時間：${o.pickup}`,"",...items,"",`💰 總金額：$${o.total}`,o.remark?`備註：${o.remark}`:""].filter(Boolean).join("\n");
 }
 
+
+function handleLinePayBigInteger(text){
+  return JSON.parse(String(text||"{}").replace(/:\s*(\d{16,})\b/g,': "$1"'));
+}
+
+function linePaySignature(apiPath,data,nonce){
+  const body=JSON.stringify(data||{});
+  const message=LINEPAY_CHANNEL_SECRET + apiPath + body + nonce;
+  return crypto.createHmac("sha256",LINEPAY_CHANNEL_SECRET).update(message,"utf8").digest("base64");
+}
+
+async function requestLinePayV4(apiPath,data){
+  if(!LINEPAY_CHANNEL_ID||!LINEPAY_CHANNEL_SECRET){
+    throw new Error("LINE Pay 正式 Channel ID / Channel Secret 尚未設定");
+  }
+
+  const nonce=crypto.randomUUID();
+  const signature=linePaySignature(apiPath,data,nonce);
+
+  console.log("[LINEPAY] POST",apiPath);
+
+  const response=await fetch(LINEPAY_API_BASE+apiPath,{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "X-LINE-ChannelId":LINEPAY_CHANNEL_ID,
+      "X-LINE-Authorization-Nonce":nonce,
+      "X-LINE-Authorization":signature
+    },
+    body:JSON.stringify(data),
+    signal:AbortSignal.timeout(45000)
+  });
+
+  const raw=await response.text();
+  let result;
+  try{
+    result=handleLinePayBigInteger(raw);
+  }catch(e){
+    console.error("[LINEPAY] invalid JSON response",response.status,raw);
+    throw new Error("LINE Pay 回傳格式錯誤");
+  }
+
+  console.log("[LINEPAY] response",apiPath,{
+    httpStatus:response.status,
+    returnCode:result?.returnCode,
+    returnMessage:result?.returnMessage
+  });
+
+  if(!response.ok){
+    throw new Error(`LINE Pay HTTP ${response.status}`);
+  }
+  return result;
+}
+
+function normalizeCheckoutPayload(o){
+  const method=o?.method==="外送"?"外送":"自取";
+  const total=Number(o?.total||0);
+
+  if(!o?.name||!o?.phone||!o?.pickup||!Array.isArray(o?.items)||!o.items.length)
+    throw new Error("缺少必要訂單資料");
+  if(!Number.isFinite(total)||total<=0)
+    throw new Error("訂單金額錯誤");
+  if(method==="外送"&&total<200)
+    throw new Error("外送訂單需滿 $200");
+  if(method==="外送"&&!String(o?.address||"").trim())
+    throw new Error("請填寫外送地址");
+
+  return {
+    name:String(o.name).slice(0,40),
+    phone:String(o.phone).slice(0,30),
+    pickup:String(o.pickup).slice(0,40),
+    address:String(o.address||"").slice(0,160),
+    remark:String(o.remark||"").slice(0,300),
+    method,
+    paymentMethod:"LINE Pay",
+    items:o.items,
+    total
+  };
+}
+
+function linePayProducts(items){
+  return (items||[]).map((x,i)=>{
+    const topAmount=(x.tops||[]).reduce((a,t)=>a+Number(t?.p||0),0);
+    const unitPrice=Number(x.price||0)+topAmount;
+    return {
+      id:`ITEM-${i+1}`,
+      name:String(x.name||`飲品${i+1}`).slice(0,100),
+      quantity:1,
+      price:unitPrice
+    };
+  });
+}
+
+function createPaidOrderFromPending(orderId,pending,transactionId){
+  const existing=readOrders().find(x=>x.id===orderId);
+  if(existing) return existing;
+
+  const p=pending.payload;
+  const order={
+    id:orderId,
+    createdAt:new Date().toISOString(),
+    status:"new",
+    name:p.name,
+    phone:p.phone,
+    pickup:p.pickup,
+    address:p.address,
+    remark:p.remark,
+    method:p.method,
+    paymentMethod:"LINE Pay",
+    paymentStatus:"paid",
+    linePayTransactionId:String(transactionId||pending.transactionId||""),
+    items:p.items,
+    total:p.total
+  };
+
+  const orders=readOrders();
+  orders.unshift(order);
+  writeOrders(orders);
+  io.emit("new-order",order);
+  return order;
+}
+
 app.get("/api/health",(req,res)=>res.json({ok:true,service:"yipin-order",lineConfigured:Boolean(LINE_CHANNEL_ACCESS_TOKEN&&LINE_CHANNEL_SECRET)}));
 
 app.post("/webhook",async(req,res)=>{
@@ -106,6 +238,168 @@ app.post("/webhook",async(req,res)=>{
 });
 
 
+
+
+// LINE Pay Online API v4 - 正式環境
+app.post("/api/linepay/request",async(req,res)=>{
+  let payload;
+  try{
+    payload=normalizeCheckoutPayload(req.body||{});
+  }catch(e){
+    return res.status(400).json({error:e.message});
+  }
+
+  const orderId=id();
+  const products=linePayProducts(payload.items);
+  const productSum=products.reduce((a,x)=>a+(Number(x.price)||0)*(Number(x.quantity)||1),0);
+
+  if(productSum!==payload.total){
+    console.error("[LINEPAY] amount mismatch",{orderId,productSum,total:payload.total});
+    return res.status(400).json({error:"訂單品項金額與總金額不一致"});
+  }
+
+  const requestBody={
+    amount:payload.total,
+    currency:"TWD",
+    orderId,
+    packages:[{
+      id:"1",
+      amount:payload.total,
+      products
+    }],
+    redirectUrls:{
+      confirmUrl:`${BASE_URL}/api/linepay/confirm?orderId=${encodeURIComponent(orderId)}`,
+      cancelUrl:`${BASE_URL}/api/linepay/cancel?orderId=${encodeURIComponent(orderId)}`
+    }
+  };
+
+  console.log("[LINEPAY] request start",{orderId,total:payload.total,method:payload.method});
+
+  try{
+    const result=await requestLinePayV4("/v4/payments/request",requestBody);
+
+    if(result?.returnCode!=="0000"){
+      console.error("[LINEPAY] request rejected",{
+        orderId,
+        returnCode:result?.returnCode,
+        returnMessage:result?.returnMessage
+      });
+      return res.status(400).json({
+        error:`LINE Pay 建立付款失敗 (${result?.returnCode||"UNKNOWN"}) ${result?.returnMessage||""}`.trim()
+      });
+    }
+
+    const transactionId=String(result?.info?.transactionId||"");
+    const paymentUrl=result?.info?.paymentUrl||{};
+
+    if(!transactionId||(!paymentUrl.web&&!paymentUrl.app)){
+      console.error("[LINEPAY] missing payment data",{orderId,result});
+      return res.status(502).json({error:"LINE Pay 未回傳付款網址或交易編號"});
+    }
+
+    const pending=readLinePayPending();
+    pending[orderId]={
+      orderId,
+      transactionId,
+      payload,
+      createdAt:Date.now()
+    };
+    writeLinePayPending(pending);
+
+    console.log("[LINEPAY] request success",{orderId,transactionId});
+
+    res.json({
+      ok:true,
+      orderId,
+      transactionId,
+      paymentUrl
+    });
+  }catch(e){
+    console.error("[LINEPAY] request exception",{
+      orderId,
+      message:e?.message,
+      stack:e?.stack
+    });
+    res.status(500).json({error:e?.message||"LINE Pay 建立付款失敗"});
+  }
+});
+
+app.get("/api/linepay/confirm",async(req,res)=>{
+  const orderId=String(req.query?.orderId||"");
+  if(!orderId){
+    return res.redirect(`${BASE_URL}/?linepay=fail&message=${encodeURIComponent("缺少訂單編號")}`);
+  }
+
+  const pendingStore=readLinePayPending();
+  const pending=pendingStore[orderId];
+  if(!pending){
+    const paid=readOrders().find(x=>x.id===orderId&&x.paymentStatus==="paid");
+    if(paid){
+      return res.redirect(`${BASE_URL}/?linepay=success&orderId=${encodeURIComponent(orderId)}`);
+    }
+    console.error("[LINEPAY] confirm pending order missing",{orderId});
+    return res.redirect(`${BASE_URL}/?linepay=fail&orderId=${encodeURIComponent(orderId)}&message=${encodeURIComponent("找不到待付款訂單")}`);
+  }
+
+  const transactionId=String(req.query?.transactionId||pending.transactionId||"");
+  if(!transactionId){
+    console.error("[LINEPAY] confirm transactionId missing",{orderId});
+    return res.redirect(`${BASE_URL}/?linepay=fail&orderId=${encodeURIComponent(orderId)}&message=${encodeURIComponent("缺少 LINE Pay 交易編號")}`);
+  }
+
+  console.log("[LINEPAY] confirm start",{orderId,transactionId,total:pending.payload.total});
+
+  try{
+    const apiPath=`/v4/payments/${encodeURIComponent(transactionId)}/confirm`;
+    const result=await requestLinePayV4(apiPath,{
+      amount:Number(pending.payload.total),
+      currency:"TWD"
+    });
+
+    if(result?.returnCode!=="0000"){
+      console.error("[LINEPAY] confirm rejected",{
+        orderId,
+        transactionId,
+        returnCode:result?.returnCode,
+        returnMessage:result?.returnMessage
+      });
+      return res.redirect(
+        `${BASE_URL}/?linepay=fail&orderId=${encodeURIComponent(orderId)}&message=${encodeURIComponent(`LINE Pay 確認付款失敗 (${result?.returnCode||"UNKNOWN"}) ${result?.returnMessage||""}`)}`
+      );
+    }
+
+    const order=createPaidOrderFromPending(orderId,pending,transactionId);
+    delete pendingStore[orderId];
+    writeLinePayPending(pendingStore);
+
+    console.log("[LINEPAY] confirm success",{orderId,transactionId,total:order.total});
+    res.redirect(`${BASE_URL}/?linepay=success&orderId=${encodeURIComponent(orderId)}`);
+  }catch(e){
+    console.error("[LINEPAY] confirm exception",{
+      orderId,
+      transactionId,
+      message:e?.message,
+      stack:e?.stack
+    });
+    res.redirect(
+      `${BASE_URL}/?linepay=fail&orderId=${encodeURIComponent(orderId)}&message=${encodeURIComponent(e?.message||"LINE Pay 確認付款失敗")}`
+    );
+  }
+});
+
+app.get("/api/linepay/cancel",(req,res)=>{
+  const orderId=String(req.query?.orderId||"");
+  console.log("[LINEPAY] customer cancelled",{orderId});
+  res.redirect(`${BASE_URL}/?linepay=cancel&orderId=${encodeURIComponent(orderId)}`);
+});
+
+app.get("/api/orders/:id/receipt",(req,res)=>{
+  const o=readOrders().find(x=>x.id===req.params.id);
+  if(!o) return res.status(404).json({error:"找不到付款完成訂單"});
+  if(o.paymentMethod!=="LINE Pay"||o.paymentStatus!=="paid")
+    return res.status(409).json({error:"此訂單尚未完成 LINE Pay 付款"});
+  res.json(o);
+});
 
 app.post("/api/shared-carts",(req,res)=>{
   const cart=sanitizeSharedCart(req.body?.cart); if(!cart.length)return res.status(400).json({error:"購物車是空的"});
