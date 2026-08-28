@@ -120,34 +120,24 @@ function buildCompactOrderText(order,payload){
   return lines.join("\n").slice(0, 4500);
 }
 
-function openLineSender(order,payload){
+async function openLineSender(order,payload){
   const text=buildCompactOrderText(order,payload);
-  const token=cryptoRandomToken();
-  try{
-    sessionStorage.setItem("yipinLineSend:"+token,JSON.stringify({
-      text,
-      returnUrl: location.origin + location.pathname,
-      createdAt: Date.now()
-    }));
-  }catch(e){
-    throw new Error("無法暫存 LINE 訂單訊息");
-  }
-  const senderUrl=`https://liff.line.me/${LINE_SEND_LIFF_ID}/?token=${encodeURIComponent(token)}`;
+  const r=await fetch("/api/line-send-token",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({text})
+  });
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok || !data.token) throw new Error(data.error||"無法建立 LINE 訂單回傳識別碼");
+  const senderUrl=`https://liff.line.me/${LINE_SEND_LIFF_ID}/?token=${encodeURIComponent(data.token)}`;
   location.href=senderUrl;
 }
 
-function cryptoRandomToken(){
-  if(window.crypto && crypto.getRandomValues){
-    const a=new Uint32Array(4);crypto.getRandomValues(a);
-    return Array.from(a,x=>x.toString(16).padStart(8,"0")).join("");
-  }
-  return Date.now().toString(36)+Math.random().toString(36).slice(2);
-}
 
 async function sendOrderToCurrentLineChat(order,payload){
   const status=document.getElementById("lineSendStatus");
   if(status) status.textContent="正在開啟 LINE 訂單回傳…";
-  openLineSender(order,payload);
+  await openLineSender(order,payload);
   return true;
 }
 
