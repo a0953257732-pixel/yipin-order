@@ -52,8 +52,7 @@ main{max-width:900px;margin:18px auto 0;padding:0 18px 120px;background:rgba(255
 <script src="/socket.io/socket.io.js"></script><script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
 const LIFF_ID = "2011256472-3TidlkYv";
-const LINE_SEND_LIFF_ID = "2011256472-Tj0ebhYR";
-// 此版本刻意不使用 liff.sendMessages()，以支援 LIFF 瀏覽器最小化。
+// 訂單回傳改由後端 Messaging API 推送，主點餐 LIFF 可繼續保留瀏覽器最小化。
 let liffReady = false;
 let lineIdToken = "";
 let lastLineOrder = null;
@@ -119,39 +118,38 @@ function buildCompactOrderText(order,payload){
   return lines.join("\n").slice(0, 4500);
 }
 
-async function openLineSender(order,payload){
-  const text=buildCompactOrderText(order,payload);
-
-  if(!lineIdToken){
-    await initLiff();
-  }
-  if(!lineIdToken){
-    throw new Error("無法取得 LINE 登入識別，請從 LINE 官方帳號重新開啟點餐頁");
-  }
-
-  const r=await fetch("/api/line-send-pending",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({text,idToken:lineIdToken})
-  });
-  const data=await r.json().catch(()=>({}));
-  if(!r.ok){
-    throw new Error(data.error||"無法建立 LINE 訂單回傳資料");
-  }
-
-  location.href=`https://liff.line.me/${LINE_SEND_LIFF_ID}`;
-}
-
 async function sendOrderToCurrentLineChat(order,payload){
   const status=document.getElementById("lineSendStatus");
-  if(status) status.textContent="正在開啟 LINE 訂單回傳…";
-  await openLineSender(order,payload);
-  return true;
+  if(status) status.textContent="正在由一品現泡茶官方帳號回傳訂單…";
+
+  // 訂單本身已經送到 /api/orders。
+  // 官方帳號回傳改由後端 Messaging API 直接推送給這位 LINE 使用者，
+  // 不再開第二個 LIFF，也不再依賴 chat_message.write。
+  if(order?.linePushOk){
+    if(status) status.textContent="✅ 完整訂單已由一品現泡茶官方帳號傳到你的 LINE 聊天室。";
+    return true;
+  }
+
+  const reason = order?.linePushError || "訂單已成立，但 LINE 訊息尚未送達";
+  if(status) status.textContent="⚠️ "+reason;
+  return false;
 }
 
 async function retryLineSend(){
   if(!lastLineOrder) return alert("找不到可重新回傳的訂單");
-  await sendOrderToCurrentLineChat(lastLineOrder.order,lastLineOrder.payload);
+  try{
+    const r=await fetch("/api/orders/"+encodeURIComponent(lastLineOrder.order.id)+"/line-push",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({idToken:lineIdToken})
+    });
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.error||"LINE 回傳失敗");
+    lastLineOrder.order.linePushOk=true;
+    await sendOrderToCurrentLineChat(lastLineOrder.order,lastLineOrder.payload);
+  }catch(e){
+    alert(e.message||"LINE 回傳失敗");
+  }
 }
 
 function clearOrderDraft(){
