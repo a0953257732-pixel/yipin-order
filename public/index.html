@@ -46,16 +46,66 @@ main{max-width:900px;margin:18px auto 0;padding:0 18px 120px;background:rgba(255
 
 <div class="overlay" id="itemModal"><div class="sheet"><h2 id="title"></h2><div id="price"></div><div class="opt"><b>甜度</b><div class="choices" id="sweet"></div></div><div class="opt"><b>冰量</b><div class="choices" id="ice"></div></div><div class="opt"><b>加料</b><div class="choices" id="tops"></div></div><div class="actions"><button class="secondary" onclick="closeM('itemModal')">取消</button><button class="primary" onclick="addItem()">加入購物車</button></div></div></div>
 <div class="overlay" id="cartModal"><div class="sheet"><h2>購物車</h2><div id="cart"></div><div class="total">合計 $<span id="cartTotal">0</span></div><button class="share-cart-btn" onclick="shareCart()">👥 分享一起點</button><div class="share-hint">把目前購物車分享給 LINE 好友或群組，所有人加飲料後會即時同步。</div><div id="groupSyncStatus" class="share-hint hidden">🟢 團購同步中</div><div class="actions"><button class="secondary" onclick="closeM('cartModal')">繼續選購</button><button class="primary" onclick="checkout()">選擇取餐方式</button></div></div></div>
-<div class="overlay" id="checkoutModal"><div class="sheet"><h2>確認訂單</h2><div class="form"><div class="fulfillment"><label><input type="radio" name="method" value="自取" checked onchange="toggleMethod()">🏪 門市自取</label><label><input type="radio" name="method" value="外送" onchange="toggleMethod()">🛵 外送到府</label></div><div id="deliveryHint" class="delivery-note hidden">外送訂單滿 $200 即可送出，實際配送範圍與送達時間以店家確認為準。</div><label>姓名<input id="name"></label><label>電話<input id="phone"></label><label id="timeLabel">自取時間<input id="time" type="datetime-local"></label><label id="addressLabel" class="hidden">外送地址<input id="address" placeholder="請輸入完整地址（含樓層／公司名稱）"></label><label>備註<textarea id="remark" rows="3" placeholder="例如：公司櫃台、到達請來電"></textarea></label><div class="payment-title">付款方式</div><div class="payment-options"><label class="payment-option"><input type="radio" name="paymentMethod" value="現場付款" checked onchange="togglePayment()">🏪 現場付款</label><label class="payment-option"><input type="radio" name="paymentMethod" value="LINE Pay" onchange="togglePayment()">LINE Pay</label></div><div id="linePayApplyNote" class="payment-note hidden">選擇 LINE Pay 後，將前往 LINE Pay 安全付款頁面；付款成功後訂單才會正式成立。點餐內容會自動保存，切換畫面後回來不用重新點。</div><div class="minimize-tip">💾 點餐內容會自動保存；若關閉點餐頁後重新從 LINE 官方帳號開啟，購物車與已填寫資料會自動恢復。</div><div class="minimize-tip">💬 訂單成立後，一品現泡茶官方帳號會把完整訂單明細傳到你的 LINE 聊天室，店家可在同一個客人聊天室接續回覆。</div></div><div class="total">訂單金額 $<span id="checkoutTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('checkoutModal')">返回</button><button class="primary" id="submitOrderBtn" onclick="submitOrder()">送出訂單</button></div></div></div>
-<div class="overlay" id="successModal"><div class="sheet"><h2>訂單已送出！</h2><div id="successText"></div><div class="status"><b id="statusTitle">🔔 新訂單</b><div id="statusId"></div><div class="status-message" id="lineSendStatus">✅ 訂單已成立，完整品項會由一品現泡茶官方帳號傳到這位客人的 LINE 聊天室。</div><div class="steps"><div class="step on" id="snew">新訂單</div><div class="step" id="saccepted">已接單</div><div class="step" id="smaking">製作中</div><div class="step" id="sdone">已完成</div></div></div><div class="actions"><button class="primary" onclick="returnToLine()">完成訂單／回到 LINE</button></div><button class="reset-order-btn" onclick="resetOrderDraft()">重新點一筆</button></div></div>
+<div class="overlay" id="checkoutModal"><div class="sheet"><h2>確認訂單</h2><div class="form"><div class="fulfillment"><label><input type="radio" name="method" value="自取" checked onchange="toggleMethod()">🏪 門市自取</label><label><input type="radio" name="method" value="外送" onchange="toggleMethod()">🛵 外送到府</label></div><div id="deliveryHint" class="delivery-note hidden">外送訂單滿 $200 即可送出，實際配送範圍與送達時間以店家確認為準。</div><label>姓名<input id="name"></label><label>電話<input id="phone"></label><label id="timeLabel">自取時間<input id="time" type="datetime-local"></label><label id="addressLabel" class="hidden">外送地址<input id="address" placeholder="請輸入完整地址（含樓層／公司名稱）"></label><label>備註<textarea id="remark" rows="3" placeholder="例如：公司櫃台、到達請來電"></textarea></label><div class="payment-title">付款方式</div><div class="payment-options"><label class="payment-option"><input type="radio" name="paymentMethod" value="現場付款" checked onchange="togglePayment()">🏪 現場付款</label><label class="payment-option"><input type="radio" name="paymentMethod" value="LINE Pay" onchange="togglePayment()">LINE Pay</label></div><div id="linePayApplyNote" class="payment-note hidden">選擇 LINE Pay 後，將前往 LINE Pay 安全付款頁面；付款成功後訂單才會正式成立。點餐內容會自動保存，切換畫面後回來不用重新點。</div><div class="minimize-tip">💾 點餐內容會自動保存。若中途關閉頁面，重新從 LINE 官方帳號點「點餐」即可恢復原本購物車與已填寫資料。</div><div class="minimize-tip">💬 訂單成立後，系統會以你的 LINE 身分把完整訂單傳回官方帳號聊天室，店家可直接在同一個聊天室確認與回覆。</div></div><div class="total">訂單金額 $<span id="checkoutTotal">0</span></div><div class="actions"><button class="secondary" onclick="closeM('checkoutModal')">返回</button><button class="primary" id="submitOrderBtn" onclick="submitOrder()">送出訂單</button></div></div></div>
+<div class="overlay" id="successModal"><div class="sheet"><h2>訂單已送出！</h2><div id="successText"></div><div class="status"><b id="statusTitle">🔔 新訂單</b><div id="statusId"></div><div class="status-message" id="lineSendStatus">送出後會把完整訂單回傳到一品現泡茶官方帳號聊天室。</div><div class="steps"><div class="step on" id="snew">新訂單</div><div class="step" id="saccepted">已接單</div><div class="step" id="smaking">製作中</div><div class="step" id="sdone">已完成</div></div></div><div class="actions"><button class="secondary hidden" id="retryLineBtn" onclick="retryLineSend()">重新回傳到 LINE</button><button class="primary" onclick="returnToLine()">完成訂單／回到 LINE</button></div><button class="reset-order-btn" onclick="resetOrderDraft()">重新點一筆</button></div></div>
 
 <script src="/socket.io/socket.io.js"></script><script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
 const LIFF_ID = "2011256472-3TidlkYv";
-// 訂單回傳由後端 Messaging API 推送；點餐草稿使用 localStorage 保存，重新開啟可恢復。
+// 使用同一個主點餐 LIFF 的 chat_message.write，讓訂單以客人本人訊息回到官方帳號聊天室；草稿以 localStorage 保存。
 let liffReady = false;
 let lineIdToken = "";
 let lastLineOrder = null;
+
+const DRAFT_KEY = "yipin_order_draft_v4";
+const PENDING_LINE_KEY = "yipin_pending_line_order_v1";
+
+function getFormSnapshot(){
+  return {
+    cart:Array.isArray(cart)?cart:[],
+    method:document.querySelector('input[name=method]:checked')?.value||'自取',
+    paymentMethod:document.querySelector('input[name=paymentMethod]:checked')?.value||'現場付款',
+    name:document.getElementById('name')?.value||'',
+    phone:document.getElementById('phone')?.value||'',
+    pickup:document.getElementById('time')?.value||'',
+    address:document.getElementById('address')?.value||'',
+    remark:document.getElementById('remark')?.value||''
+  };
+}
+
+function savePendingLineOrder(order,payload){
+  try{
+    localStorage.setItem(PENDING_LINE_KEY,JSON.stringify({order,payload}));
+  }catch(e){
+    console.warn("save pending LINE order failed",e);
+  }
+}
+
+function clearPendingLineOrder(){
+  try{ localStorage.removeItem(PENDING_LINE_KEY); }catch(e){}
+}
+
+function restorePendingLineOrder(){
+  try{
+    const raw=localStorage.getItem(PENDING_LINE_KEY);
+    if(!raw) return false;
+    const data=JSON.parse(raw);
+    if(!data?.order?.id || !data?.payload) return false;
+    lastLineOrder=data;
+    trackingId=data.order.id;
+    document.getElementById('statusId').textContent='訂單編號：'+data.order.id+'｜'+(data.order.method||data.payload.method||'');
+    renderStatus(data.order.status||'new');
+    document.getElementById('lineSendStatus').textContent='⚠️ 這筆訂單尚未回傳到 LINE，請按「重新回傳到 LINE」。';
+    document.getElementById('successModal').classList.add('show');
+    const retry=document.getElementById('retryLineBtn');
+    if(retry) retry.classList.remove('hidden');
+    return true;
+  }catch(e){
+    console.warn("restore pending LINE order failed",e);
+    return false;
+  }
+}
+
 
 function safeText(v){
   return String(v ?? "")
@@ -120,35 +170,45 @@ function buildCompactOrderText(order,payload){
 
 async function sendOrderToCurrentLineChat(order,payload){
   const status=document.getElementById("lineSendStatus");
-  if(status) status.textContent="正在由一品現泡茶官方帳號回傳訂單…";
+  const retry=document.getElementById("retryLineBtn");
+  if(retry) retry.classList.add("hidden");
+  if(status) status.textContent="正在把完整訂單回傳到 LINE 官方帳號聊天室…";
 
-  // 訂單本身已經送到 /api/orders。
-  // 官方帳號回傳改由後端 Messaging API 直接推送給這位 LINE 使用者，
-  // 不再開第二個 LIFF，也不再依賴 chat_message.write。
-  if(order?.linePushOk){
-    if(status) status.textContent="✅ 完整訂單已由一品現泡茶官方帳號傳到你的 LINE 聊天室。";
+  try{
+    if(!window.liff) throw new Error("LIFF SDK 尚未載入");
+    if(!liffReady){
+      const ok=await initLiff();
+      if(!ok) throw new Error("LIFF 初始化失敗");
+    }
+    if(!liff.isInClient()) throw new Error("請從 LINE App 內的官方帳號點餐頁送出訂單");
+    if(typeof liff.sendMessages!=="function") throw new Error("目前 LIFF 不支援訊息回傳");
+
+    const text=buildCompactOrderText(order,payload);
+    await liff.sendMessages([{type:"text",text}]);
+
+    clearPendingLineOrder();
+    clearOrderDraft();
+    cart=[];
+    update();
+
+    if(status) status.textContent="✅ 訂單已以你的 LINE 身分回傳到一品現泡茶官方帳號聊天室。";
+    if(retry) retry.classList.add("hidden");
     return true;
+  }catch(e){
+    console.error("liff.sendMessages failed",e);
+    savePendingLineOrder(order,payload);
+    saveOrderDraft();
+    if(status) status.textContent="⚠️ 訂單已建立，但尚未回傳到 LINE："+(e?.message||"回傳失敗");
+    if(retry) retry.classList.remove("hidden");
+    return false;
   }
-
-  const reason = order?.linePushError || "訂單已成立，但 LINE 訊息尚未送達";
-  if(status) status.textContent="⚠️ "+reason;
-  return false;
 }
 
 async function retryLineSend(){
   if(!lastLineOrder) return alert("找不到可重新回傳的訂單");
-  try{
-    const r=await fetch("/api/orders/"+encodeURIComponent(lastLineOrder.order.id)+"/line-push",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({idToken:lineIdToken})
-    });
-    const data=await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(data.error||"LINE 回傳失敗");
-    lastLineOrder.order.linePushOk=true;
-    await sendOrderToCurrentLineChat(lastLineOrder.order,lastLineOrder.payload);
-  }catch(e){
-    alert(e.message||"LINE 回傳失敗");
+  const ok=await sendOrderToCurrentLineChat(lastLineOrder.order,lastLineOrder.payload);
+  if(ok){
+    alert("訂單已成功回傳到 LINE 官方帳號聊天室");
   }
 }
 
@@ -526,9 +586,8 @@ async function submitOrder(){
     renderStatus(o.status||'new');
     closeM('checkoutModal');
     document.getElementById('successModal').classList.add('show');
-    cart=[];
-    update();
-    clearOrderDraft();
+    savePendingLineOrder(o,lastLineOrder.payload);
+    saveOrderDraft();
     await sendOrderToCurrentLineChat(o,lastLineOrder.payload);
 
   }catch(e){
@@ -576,9 +635,9 @@ async function handleLinePayReturn(){
       document.getElementById('successModal').classList.add('show');
       document.getElementById('lineSendStatus').textContent='✅ LINE Pay 付款成功，訂單已送達店家。';
 
+      savePendingLineOrder(o,payload);
       await sendOrderToCurrentLineChat(o,payload);
       sessionStorage.removeItem('yipinLinePayOrderId');
-      clearOrderDraft();
       history.replaceState({},'',location.pathname);
     }catch(e){
       alert('付款已返回，但讀取訂單失敗：'+e.message);
@@ -613,6 +672,7 @@ async function boot(){
   }
   bindDraftAutosave();
   await handleLinePayReturn();
+  restorePendingLineOrder();
 }
 if(document.readyState === "loading"){
   document.addEventListener("DOMContentLoaded", boot);
