@@ -131,7 +131,7 @@ app.delete("/api/shared-carts/:id/items/:itemId",(req,res)=>{
   const payload={shareId:req.params.id,cart:x.cart,version:x.version,updatedAt:x.updatedAt};io.to(`shared-cart:${req.params.id}`).emit("shared-cart-updated",payload);res.json({ok:true,...payload});
 });
 
-app.post("/api/orders",async(req,res)=>{
+app.post("/api/orders",(req,res)=>{
   const o=req.body||{},method=o.method==="外送"?"外送":"自取",total=Number(o.total||0);
 
   if(!o.name||!o.phone||!o.pickup||!Array.isArray(o.items)||!o.items.length)
@@ -161,49 +161,14 @@ app.post("/api/orders",async(req,res)=>{
   writeOrders(orders);
   io.emit("new-order",order);
 
-  let linePushOk=false;
-  let linePushError="";
+  // 不再由 Official Account 主動把訂單推給客人。
+  // 完整訂單會由前端 liff.sendMessages() 以客人本人身分傳回官方帳號聊天室。
+  res.json(order);
 
-  // 直接用主點餐 LIFF 的 ID token 驗證是哪一位 LINE 使用者，
-  // 再由官方帳號 Messaging API 推送完整訂單給該使用者。
-  try{
-    const userId=await verifyLineIdToken(o.lineIdToken);
-    if(!userId){
-      linePushError="無法確認 LINE 使用者，請從一品官方帳號重新開啟點餐頁";
-    }else if(!LINE_CHANNEL_ACCESS_TOKEN){
-      linePushError="LINE_CHANNEL_ACCESS_TOKEN 尚未設定";
-    }else{
-      await pushLineMessage(userId,formatOrderForLine(order));
-      linePushOk=true;
-    }
-  }catch(err){
-    linePushError="官方帳號訂單回傳失敗";
-    console.error("Customer LINE order push failed:",err.message);
-  }
-
-  // 原本固定通知對象仍保留（若有設定）
+  // 若店家另有設定固定通知對象，仍可保留內部通知。
   if(LINE_NOTIFY_TARGET&&LINE_CHANNEL_ACCESS_TOKEN){
     pushLineMessage(LINE_NOTIFY_TARGET,formatOrderForLine(order))
-      .catch(e=>console.error("LINE order push failed:",e.message));
-  }
-
-  res.json({...order,linePushOk,linePushError});
-});
-
-app.post("/api/orders/:id/line-push",async(req,res)=>{
-  const order=readOrders().find(x=>x.id===req.params.id);
-  if(!order) return res.status(404).json({error:"找不到訂單"});
-
-  const userId=await verifyLineIdToken(req.body?.idToken);
-  if(!userId) return res.status(401).json({error:"無法確認 LINE 使用者"});
-  if(!LINE_CHANNEL_ACCESS_TOKEN) return res.status(500).json({error:"LINE_CHANNEL_ACCESS_TOKEN 尚未設定"});
-
-  try{
-    await pushLineMessage(userId,formatOrderForLine(order));
-    res.json({ok:true});
-  }catch(err){
-    console.error("Retry customer LINE push failed:",err.message);
-    res.status(500).json({error:"官方帳號訂單回傳失敗"});
+      .catch(e=>console.error("LINE internal order push failed:",e.message));
   }
 });
 
