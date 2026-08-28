@@ -152,6 +152,14 @@ async function retryLineSend(){
   }
 }
 
+function saveOrderDraft(){
+  try{
+    localStorage.setItem(DRAFT_KEY,JSON.stringify(getFormSnapshot()));
+  }catch(e){
+    console.warn("save draft failed",e);
+  }
+}
+
 function clearOrderDraft(){
   try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
 }
