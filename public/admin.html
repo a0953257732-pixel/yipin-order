@@ -60,7 +60,12 @@ main{max-width:760px;margin:auto;padding:10px 10px 28px}
 .card.new{border-left:5px solid var(--red)}
 .card.accepted{border-left:5px solid var(--green2)}
 .card.making{border-left:5px solid var(--orange)}
-
+.card.done{
+  opacity:1;
+  background:#fff;
+  border:1px solid #dfe6e0;
+  border-left:5px solid #4d6f52;
+}
 .headrow{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .order-id{font-weight:950;color:var(--green);font-size:15px}
 .timebig{font-weight:950;font-size:20px;white-space:nowrap}
@@ -93,98 +98,159 @@ main{max-width:760px;margin:auto;padding:10px 10px 28px}
   margin:10px 0;background:#eef5ef;border:1px solid #dce7de;color:#3d5f4b;border-radius:12px;
   padding:10px 12px;font-size:12px;line-height:1.5
 }
+
+/* ===== 已完成訂單：高對比清晰版 ===== */
+.card.done .order-id{color:#07502f}
+.card.done .timebig{color:#243029}
+.card.done .small{color:#59635c}
+.card.done .customer{color:#243029}
+.card.done .customer b{color:#243029}
+.card.done .customer a{color:#07502f}
+.card.done .addressbox{
+  background:#faf7ef;
+  color:#243029;
+  border:1px solid #eee6d4;
+}
+.card.done .item{border-bottom:1px dashed #d9dfda}
+.card.done .item b{color:#243029}
+.card.done .sub{color:#59635c}
+.card.done .total{color:#07502f}
+.card.done .pill.cash{background:#fff5df;color:#805306}
+.card.done .pill.pay{background:#eaf6ee;color:#0d5a2f}
+.card.done .pill.delivery{background:#fff0e8;color:#914313}
+.card.done .pill.pickup{background:#edf3ff;color:#31537d}
+
 @media(min-width:700px){
   main{max-width:1100px}
   .order-list{grid-template-columns:repeat(2,minmax(0,1fr))}
   .tabs{top:61px}
 }
 
-/* ===== 高對比清晰版 v3 ===== */
+/* ===== 輕微視障友善版 v4：製作中 / 已完成高對比＋大字 ===== */
+
+/* 整體基礎字級提高 */
+body{font-size:17px !important}
+.brand{font-size:22px !important}
+.statusline{font-size:14px !important}
+.iconbtn{font-size:18px !important;min-height:48px !important;padding:10px 14px !important}
+.install-tip{font-size:15px !important;line-height:1.7 !important}
+.sum-card b{font-size:30px !important}
+.sum-card span{font-size:15px !important;color:#2f3732 !important}
+.tab{font-size:16px !important;min-height:52px !important}
+.badge{font-size:14px !important;min-width:26px !important;height:26px !important}
+.section-title{font-size:20px !important;color:#1e2822 !important}
+
+/* 所有訂單卡的文字都提高 */
 .card{
   background:#ffffff !important;
-  color:#171c19 !important;
-  border:1px solid #d7dfd9 !important;
-  box-shadow:0 4px 18px rgba(0,0,0,.07) !important;
-  overflow:hidden !important;
+  color:#111111 !important;
+  border:2px solid #cfd8d2 !important;
+  box-shadow:0 4px 16px rgba(0,0,0,.10) !important;
+  opacity:1 !important;
 }
+.order-id{font-size:22px !important;color:#004d2d !important;font-weight:950 !important}
+.timebig{font-size:27px !important;color:#111111 !important;font-weight:950 !important}
+.small{font-size:16px !important;color:#303733 !important}
+.customer{font-size:18px !important;line-height:1.8 !important;color:#111111 !important}
+.customer b{font-size:19px !important;color:#111111 !important}
+.customer a{font-size:18px !important;color:#004d2d !important;text-decoration:underline !important}
+.pill{
+  font-size:15px !important;
+  padding:8px 11px !important;
+  border-width:2px !important;
+  border-style:solid !important;
+}
+.item{padding:14px 0 !important}
+.item b{font-size:20px !important;color:#000000 !important;font-weight:950 !important}
+.sub{font-size:17px !important;color:#343a36 !important;line-height:1.75 !important;opacity:1 !important}
+.addressbox{
+  font-size:17px !important;
+  line-height:1.75 !important;
+  background:#fffaf0 !important;
+  color:#111111 !important;
+  border:2px solid #d8c9a6 !important;
+}
+.total{font-size:31px !important;color:#004d2d !important;font-weight:950 !important}
+.actions button{font-size:19px !important;min-height:60px !important}
+
+/* 製作中：淡黃色底＋深橘框＋黑字 */
+.card.making{
+  background:#fff8df !important;
+  color:#111111 !important;
+  border:3px solid #d97706 !important;
+  border-left:9px solid #b45309 !important;
+}
+.card.making .order-id{color:#8a3f00 !important}
+.card.making .timebig,
+.card.making .customer,
+.card.making .customer b,
+.card.making .item b{color:#111111 !important}
+.card.making .small,
+.card.making .sub{color:#2d2d2d !important}
+.card.making .total{color:#8a3f00 !important}
+
+/* 已完成：純白底＋深綠框＋黑字，避免整卡灰綠 */
 .card.done{
-  opacity:1 !important;
   background:#ffffff !important;
-  color:#171c19 !important;
-  border-left:5px solid #07502f !important;
-}
-.card .order-id{
-  color:#07502f !important;
-  font-weight:950 !important;
-}
-.card .timebig{
-  color:#171c19 !important;
-}
-.card .small{
-  color:#5e6761 !important;
-}
-.card .customer,
-.card .customer b{
-  color:#171c19 !important;
-}
-.card .customer a{
-  color:#07502f !important;
-}
-.card .addressbox{
-  background:#faf8f1 !important;
-  color:#171c19 !important;
-  border:1px solid #e5dfcf !important;
-}
-.card .items{
-  border-top:1px solid #d9dfda !important;
-}
-.card .item{
-  border-bottom:1px dashed #cfd7d1 !important;
-}
-.card .item b{
-  color:#111713 !important;
-  font-weight:950 !important;
-}
-.card .sub{
-  color:#4f5853 !important;
+  color:#111111 !important;
+  border:3px solid #07502f !important;
+  border-left:9px solid #07502f !important;
   opacity:1 !important;
 }
-.card .footerrow{
-  border-top:1px solid #e1e6e2 !important;
-  padding-top:12px !important;
+.card.done .order-id{color:#00512f !important}
+.card.done .timebig,
+.card.done .customer,
+.card.done .customer b,
+.card.done .item b{color:#111111 !important}
+.card.done .small,
+.card.done .sub{color:#303733 !important}
+.card.done .total{color:#00512f !important}
+
+/* 標籤也加強對比 */
+.pill.pay{
+  background:#e8f7ed !important;
+  color:#064b28 !important;
+  border-color:#5fbf7d !important;
 }
-.card .total{
-  color:#07502f !important;
-  font-weight:950 !important;
+.pill.cash{
+  background:#fff0c8 !important;
+  color:#704500 !important;
+  border-color:#d8a93d !important;
 }
-.card .pill.pay{
-  background:#eaf6ee !important;
-  color:#0b5b31 !important;
-  border:1px solid #b8ddc4 !important;
+.pill.delivery{
+  background:#fff0e9 !important;
+  color:#8a2e00 !important;
+  border-color:#e28a5c !important;
 }
-.card .pill.cash{
-  background:#fff4d9 !important;
-  color:#7b5205 !important;
-  border:1px solid #ead49b !important;
+.pill.pickup{
+  background:#e9f1ff !important;
+  color:#173e6d !important;
+  border-color:#83a9d5 !important;
 }
-.card .pill.delivery{
-  background:#fff0e8 !important;
-  color:#9a3f10 !important;
-  border:1px solid #efc5b0 !important;
+
+/* 狀態按鈕：更大、更鮮明 */
+.making{
+  background:#b45309 !important;
+  color:#ffffff !important;
 }
-.card .pill.pickup{
-  background:#edf3ff !important;
-  color:#264d7a !important;
-  border:1px solid #c7d8ee !important;
+.done{
+  background:#07502f !important;
+  color:#ffffff !important;
 }
+
+/* 手機額外放大 */
 @media(max-width:560px){
-  .card{padding:16px !important;border-radius:18px !important}
-  .card .order-id{font-size:18px !important}
-  .card .timebig{font-size:20px !important}
-  .card .customer{font-size:15px !important}
-  .card .item b{font-size:16px !important}
-  .card .sub{font-size:13px !important;line-height:1.65 !important}
-  .card .total{font-size:25px !important}
+  main{padding:10px 8px 28px !important}
+  .card{padding:18px !important;border-radius:18px !important}
+  .order-id{font-size:23px !important}
+  .timebig{font-size:28px !important}
+  .customer{font-size:19px !important}
+  .item b{font-size:21px !important}
+  .sub{font-size:18px !important}
+  .small{font-size:17px !important}
+  .total{font-size:33px !important}
+  .section-title{font-size:22px !important}
+  .tab{font-size:17px !important}
 }
 
 </style>
@@ -450,7 +516,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js?v=3').catch(()=>{}));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js?v=4').catch(()=>{}));
 }
 </script>
 </body>
