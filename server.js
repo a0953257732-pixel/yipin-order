@@ -25,11 +25,13 @@ const LINEPAY_CHANNEL_SECRET = process.env.LINEPAY_CHANNEL_SECRET || "";
 const LINEPAY_API_BASE = "https://api-pay.line.me";
 const BASE_URL = String(process.env.BASE_URL || "https://yipin-order.onrender.com").replace(/\/$/,"");
 const LINEPAY_PENDING_DB = path.join(DATA_DIR, "linepay-pending.json");
+const LINE_SEND_TOKEN_DB = path.join(DATA_DIR, "line-send-tokens.json");
 
 fs.mkdirSync(DATA_DIR,{recursive:true});
 if(!fs.existsSync(DB)) fs.writeFileSync(DB,"[]");
 if(!fs.existsSync(SHARED_DB)) fs.writeFileSync(SHARED_DB,"{}");
 if(!fs.existsSync(LINEPAY_PENDING_DB)) fs.writeFileSync(LINEPAY_PENDING_DB,"{}");
+if(!fs.existsSync(LINE_SEND_TOKEN_DB)) fs.writeFileSync(LINE_SEND_TOKEN_DB,"{}");
 
 app.use(express.json({limit:"1mb",verify:(req,res,buf)=>{req.rawBody=Buffer.from(buf)}}));
 app.use(express.static(path.join(__dirname,"public")));
@@ -42,6 +44,8 @@ function readSharedCarts(){return readJson(SHARED_DB,{})}
 function writeSharedCarts(x){writeJson(SHARED_DB,x)}
 function readLinePayPending(){return readJson(LINEPAY_PENDING_DB,{})}
 function writeLinePayPending(x){writeJson(LINEPAY_PENDING_DB,x)}
+function readLineSendTokens(){return readJson(LINE_SEND_TOKEN_DB,{})}
+function writeLineSendTokens(x){writeJson(LINE_SEND_TOKEN_DB,x)}
 function id(){return "YP"+crypto.randomBytes(4).toString("hex").toUpperCase()}
 function sharedCartId(){return crypto.randomBytes(8).toString("hex")}
 
@@ -327,6 +331,59 @@ function createPaidOrderFromPending(orderId,pending,transactionId){
   io.emit("new-order",order);
   return order;
 }
+
+
+function cleanupLineSendTokens(store){
+  const now=Date.now();
+  let changed=false;
+  for(const [token,entry] of Object.entries(store||{})){
+    if(!entry || !entry.createdAt || now-Number(entry.createdAt)>15*60*1000){
+      delete store[token];
+      changed=true;
+    }
+  }
+  return changed;
+}
+
+app.post("/api/line-send-token",(req,res)=>{
+  const text=String(req.body?.text||"").trim();
+  if(!text) return res.status(400).json({error:"缺少 LINE 訂單回傳內容"});
+  if(text.length>4500) return res.status(400).json({error:"LINE 訂單內容過長"});
+
+  const store=readLineSendTokens();
+  cleanupLineSendTokens(store);
+
+  const token=crypto.randomBytes(18).toString("hex");
+  store[token]={text,createdAt:Date.now()};
+  writeLineSendTokens(store);
+
+  console.log("[LINE-SEND] token created",{token:token.slice(0,8)+"...",length:text.length});
+  res.json({ok:true,token});
+});
+
+app.get("/api/line-send-token/:token",(req,res)=>{
+  const token=String(req.params.token||"");
+  const store=readLineSendTokens();
+  const changed=cleanupLineSendTokens(store);
+  const entry=store[token];
+
+  if(changed) writeLineSendTokens(store);
+  if(!entry) return res.status(404).json({error:"找不到訂單資料，請回點餐頁重新送出"});
+
+  res.set("Cache-Control","no-store");
+  res.json({ok:true,text:String(entry.text||"")});
+});
+
+app.delete("/api/line-send-token/:token",(req,res)=>{
+  const token=String(req.params.token||"");
+  const store=readLineSendTokens();
+  const existed=Boolean(store[token]);
+  if(existed){
+    delete store[token];
+    writeLineSendTokens(store);
+  }
+  res.json({ok:true,deleted:existed});
+});
 
 app.get("/api/health",(req,res)=>res.json({ok:true,service:"yipin-order",lineConfigured:Boolean(LINE_CHANNEL_ACCESS_TOKEN&&LINE_CHANNEL_SECRET)}));
 
