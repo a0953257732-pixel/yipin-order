@@ -147,6 +147,29 @@ async function retryLineSend(){
   await sendOrderToCurrentLineChat(lastLineOrder.order,lastLineOrder.payload);
 }
 
+const DRAFT_KEY="yipin-order-draft-v1";
+
+function saveOrderDraft(){
+  try{
+    const method=document.querySelector('input[name=method]:checked')?.value||'自取';
+    const paymentMethod=document.querySelector('input[name=paymentMethod]:checked')?.value||'現場付款';
+    const draft={
+      cart:Array.isArray(cart)?cart:[],
+      method,
+      paymentMethod,
+      name:document.getElementById('name')?.value||'',
+      phone:document.getElementById('phone')?.value||'',
+      pickup:document.getElementById('time')?.value||'',
+      address:document.getElementById('address')?.value||'',
+      remark:document.getElementById('remark')?.value||'',
+      updatedAt:Date.now()
+    };
+    localStorage.setItem(DRAFT_KEY,JSON.stringify(draft));
+  }catch(e){
+    console.warn('save draft failed',e);
+  }
+}
+
 function clearOrderDraft(){
   try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
 }
@@ -407,7 +430,13 @@ async function del(i){
   update();
   renderCart();
   saveOrderDraft();
-}function checkout(){if(!cart.length)return alert('購物車是空的');closeM('cartModal');document.getElementById('checkoutTotal').textContent=total();toggleMethod();document.getElementById('checkoutModal').classList.add('show')}
+}function checkout(){
+  if(!cart.length) return alert('購物車是空的');
+  closeM('cartModal');
+  document.getElementById('checkoutTotal').textContent=total();
+  document.getElementById('checkoutModal').classList.add('show');
+  try{ toggleMethod(); }catch(e){ console.error('toggleMethod failed',e); }
+}
 
 function setMinimumOrderTime(){
   const method=document.querySelector('input[name=method]:checked')?.value||'自取';
