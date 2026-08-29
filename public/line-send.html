@@ -7,51 +7,111 @@
 <style>
 body{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Microsoft JhengHei",sans-serif;margin:0;background:#f6f0e3;color:#123f2d;display:grid;place-items:center;min-height:100vh}
 .box{width:min(420px,calc(100% - 32px));background:#fffdf8;border:1px solid #e4ded1;padding:28px 20px;text-align:center;box-shadow:0 12px 34px rgba(18,63,45,.10)}
-h2{margin:0 0 12px}#msg{line-height:1.8;color:#59665e}button{border:0;background:#123f2d;color:white;padding:12px 18px;font-weight:800;margin-top:14px}
+h2{margin:0 0 12px}
+#msg{line-height:1.8;color:#59665e;white-space:pre-line}
+button{border:0;background:#123f2d;color:white;padding:12px 18px;font-weight:800;margin-top:14px;border-radius:4px}
 </style>
 </head>
-<body><div class="box"><h2>一品現泡茶</h2><div id="msg">正在把訂單回傳到 LINE 聊天室…</div><button id="retry" hidden>重新傳送</button></div>
+<body>
+<div class="box">
+  <h2>一品現泡茶</h2>
+  <div id="msg">正在把訂單回傳到 LINE 聊天室…</div>
+  <button id="retry" hidden>重新傳送</button>
+</div>
+
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
 const SEND_LIFF_ID="2011256472-Tj0ebhYR";
 const msg=document.getElementById("msg");
 const retry=document.getElementById("retry");
 
-async function getPayload(){
-  await liff.init({liffId:SEND_LIFF_ID});
-  if(!liff.isLoggedIn()){
-    liff.login({redirectUri:location.href});
-    return null;
-  }
-  const idToken=typeof liff.getIDToken==="function" ? (liff.getIDToken()||"") : "";
-  if(!idToken) throw new Error("無法取得 LINE 登入識別");
+function getTokenFromLiffUrl(){
+  const qs=new URLSearchParams(location.search);
 
-  const r=await fetch("/api/line-send-pending/take",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({idToken})
+  // 一般網址直接帶 ?token=xxx
+  let token=qs.get("token")||"";
+  if(token) return token;
+
+  // LIFF 開啟時，原本 query 可能被 LINE 包進 liff.state
+  const state=qs.get("liff.state")||"";
+  if(state){
+    try{
+      const decoded=decodeURIComponent(state);
+      const qIndex=decoded.indexOf("?");
+      const stateQuery=qIndex>=0 ? decoded.slice(qIndex+1) : decoded.replace(/^\?/,"");
+      token=new URLSearchParams(stateQuery).get("token")||"";
+      if(token) return token;
+    }catch(e){
+      console.warn("liff.state parse failed",e);
+    }
+  }
+
+  return "";
+}
+
+async function getPayload(){
+  const token=getTokenFromLiffUrl();
+  if(!token) throw new Error("缺少訂單回傳識別碼");
+
+  const r=await fetch("/api/line-send-token/"+encodeURIComponent(token),{
+    method:"GET",
+    cache:"no-store"
   });
+
   const data=await r.json().catch(()=>({}));
-  if(!r.ok || !data.text) throw new Error(data.error||"找不到待回傳訂單");
-  return {text:data.text};
+  if(!r.ok || !data.text){
+    throw new Error(data.error||"找不到待回傳訂單");
+  }
+
+  return {token,text:data.text};
+}
+
+async function removeToken(token){
+  try{
+    await fetch("/api/line-send-token/"+encodeURIComponent(token),{method:"DELETE"});
+  }catch(e){
+    console.warn("清除 token 失敗",e);
+  }
 }
 
 async function send(){
   retry.hidden=true;
   msg.textContent="正在把訂單回傳到 LINE 聊天室…";
+
   try{
+    await liff.init({liffId:SEND_LIFF_ID});
+
+    if(!liff.isLoggedIn()){
+      liff.login({redirectUri:location.href});
+      return;
+    }
+
     const p=await getPayload();
-    if(!p) return;
-    if(!liff.isInClient()) throw new Error("請從 LINE App 內完成訂單回傳");
-    await liff.sendMessages([{type:"text",text:p.text.slice(0,4500)}]);
+
+    if(!liff.isInClient()){
+      throw new Error("請從 LINE App 內完成訂單回傳");
+    }
+
+    await liff.sendMessages([
+      {type:"text",text:String(p.text).slice(0,4500)}
+    ]);
+
+    await removeToken(p.token);
+
     msg.textContent="✅ 訂單已回傳到 LINE 聊天室";
-    setTimeout(()=>{ try{liff.closeWindow();}catch(e){} },700);
+    setTimeout(()=>{
+      try{ liff.closeWindow(); }catch(e){}
+    },700);
+
   }catch(e){
-    console.error(e);
+    console.error("LINE order send failed",e);
     msg.textContent="⚠️ "+(e?.message||"LINE 訂單回傳失敗");
     retry.hidden=false;
   }
 }
+
 retry.onclick=send;
 send();
-</script></body></html>
+</script>
+</body>
+</html>
