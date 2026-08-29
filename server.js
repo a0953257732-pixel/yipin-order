@@ -333,16 +333,67 @@ function createPaidOrderFromPending(orderId,pending,transactionId){
 }
 
 
-function cleanupLineSendTokens(store){
-  const now=Date.now();
-  let changed=false;
-  for(const [token,entry] of Object.entries(store||{})){
-    if(!entry || !entry.createdAt || now-Number(entry.createdAt)>15*60*1000){
-      delete store[token];
-      changed=true;
-    }
+
+function base64urlEncode(input){
+  return Buffer.from(String(input),"utf8")
+    .toString("base64")
+    .replace(/\+/g,"-")
+    .replace(/\//g,"_")
+    .replace(/=+$/,"");
+}
+
+function base64urlDecode(input){
+  let s=String(input||"").replace(/-/g,"+").replace(/_/g,"/");
+  while(s.length%4) s+="=";
+  return Buffer.from(s,"base64").toString("utf8");
+}
+
+function lineSendSigningKey(){
+  // Prefer LINE channel secret; fall back to admin PIN so the token is still signed.
+  return LINE_CHANNEL_SECRET || ADMIN_PIN || "yipin-line-send";
+}
+
+function createLineSendToken(text){
+  const payload={
+    text:String(text||"").slice(0,4500),
+    exp:Date.now()+15*60*1000,
+    nonce:crypto.randomBytes(8).toString("hex")
+  };
+  const body=base64urlEncode(JSON.stringify(payload));
+  const sig=crypto
+    .createHmac("sha256",lineSendSigningKey())
+    .update(body)
+    .digest("base64url");
+  return body+"."+sig;
+}
+
+function readLineSendToken(token){
+  const parts=String(token||"").split(".");
+  if(parts.length!==2) throw new Error("無效的訂單回傳識別碼");
+
+  const [body,sig]=parts;
+  const expected=crypto
+    .createHmac("sha256",lineSendSigningKey())
+    .update(body)
+    .digest("base64url");
+
+  const a=Buffer.from(sig);
+  const b=Buffer.from(expected);
+  if(a.length!==b.length || !crypto.timingSafeEqual(a,b)){
+    throw new Error("訂單回傳識別碼驗證失敗");
   }
-  return changed;
+
+  let payload;
+  try{
+    payload=JSON.parse(base64urlDecode(body));
+  }catch(e){
+    throw new Error("訂單回傳資料格式錯誤");
+  }
+
+  if(!payload?.text) throw new Error("找不到訂單資料");
+  if(Number(payload.exp||0)<Date.now()) throw new Error("訂單回傳識別碼已逾時，請回點餐頁重新送出");
+
+  return payload;
 }
 
 app.post("/api/line-send-token",(req,res)=>{
@@ -350,39 +401,25 @@ app.post("/api/line-send-token",(req,res)=>{
   if(!text) return res.status(400).json({error:"缺少 LINE 訂單回傳內容"});
   if(text.length>4500) return res.status(400).json({error:"LINE 訂單內容過長"});
 
-  const store=readLineSendTokens();
-  cleanupLineSendTokens(store);
-
-  const token=crypto.randomBytes(18).toString("hex");
-  store[token]={text,createdAt:Date.now()};
-  writeLineSendTokens(store);
-
-  console.log("[LINE-SEND] token created",{token:token.slice(0,8)+"...",length:text.length});
+  const token=createLineSendToken(text);
+  console.log("[LINE-SEND] signed token created",{length:text.length});
   res.json({ok:true,token});
 });
 
 app.get("/api/line-send-token/:token",(req,res)=>{
-  const token=String(req.params.token||"");
-  const store=readLineSendTokens();
-  const changed=cleanupLineSendTokens(store);
-  const entry=store[token];
-
-  if(changed) writeLineSendTokens(store);
-  if(!entry) return res.status(404).json({error:"找不到訂單資料，請回點餐頁重新送出"});
-
-  res.set("Cache-Control","no-store");
-  res.json({ok:true,text:String(entry.text||"")});
+  try{
+    const payload=readLineSendToken(req.params.token);
+    res.set("Cache-Control","no-store");
+    res.json({ok:true,text:String(payload.text||"")});
+  }catch(e){
+    console.error("[LINE-SEND] token read failed",e?.message);
+    res.status(404).json({error:e?.message||"找不到訂單資料，請回點餐頁重新送出"});
+  }
 });
 
 app.delete("/api/line-send-token/:token",(req,res)=>{
-  const token=String(req.params.token||"");
-  const store=readLineSendTokens();
-  const existed=Boolean(store[token]);
-  if(existed){
-    delete store[token];
-    writeLineSendTokens(store);
-  }
-  res.json({ok:true,deleted:existed});
+  // Self-contained signed tokens do not require server-side deletion.
+  res.json({ok:true,deleted:true});
 });
 
 app.get("/api/health",(req,res)=>res.json({ok:true,service:"yipin-order",lineConfigured:Boolean(LINE_CHANNEL_ACCESS_TOKEN&&LINE_CHANNEL_SECRET)}));
