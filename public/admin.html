@@ -253,6 +253,10 @@ body{font-size:17px !important}
   .tab{font-size:17px !important}
 }
 
+
+.order-alarm{display:none;position:sticky;top:0;z-index:100;background:#b91c1c;color:#fff;padding:14px;text-align:center;font-size:21px;font-weight:950;animation:alarmFlash .55s infinite alternate}
+.order-alarm.show{display:block}
+@keyframes alarmFlash{from{background:#991b1b}to{background:#ef4444}}
 </style>
 </head>
 <body>
@@ -268,6 +272,7 @@ body{font-size:17px !important}
     </div>
   </div>
 </header>
+<div id="orderAlarm" class="order-alarm">🔔 新訂單尚未接單！持續警報中</div>
 
 <main>
   <div id="login" class="login">
@@ -305,6 +310,8 @@ let logged=false;
 let allOrders=[];
 let currentTab='new';
 let audioCtx=null;
+let alarmTimer=null;
+let alarmActive=false;
 
 const SESSION_KEY='yipin_admin_logged_v3';
 
@@ -371,6 +378,7 @@ async function load(){
     const r=await fetch('/api/admin/orders',{cache:'no-store'});
     allOrders=await r.json();
     render();
+    updateAlarm();
     document.getElementById('syncText').textContent='已同步｜'+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
   }catch(e){
     document.getElementById('syncText').textContent='同步失敗';
@@ -453,6 +461,7 @@ async function moveOrder(id,status){
       throw new Error(e.error||'更新失敗');
     }
     await load();
+    updateAlarm();
     if(status==='accepted') switchTab('accepted',document.querySelector('.tab[data-status="accepted"]'));
     if(status==='making') switchTab('making',document.querySelector('.tab[data-status="making"]'));
     if(status==='done') switchTab('done',document.querySelector('.tab[data-status="done"]'));
@@ -476,34 +485,82 @@ function urlBase64ToUint8Array(base64String){const padding='='.repeat((4-base64S
 async function enablePush(){const btn=document.getElementById('pushBtn');try{if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window))throw new Error('這台裝置不支援背景推播');const isiOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;if(isiOS&&!standalone)throw new Error('iPhone 請先用 Safari「分享 → 加入主畫面」，再從主畫面開啟一品接單');let p=Notification.permission;if(p!=='granted')p=await Notification.requestPermission();if(p!=='granted')throw new Error('通知權限尚未允許');const reg=await navigator.serviceWorker.ready;const k=await fetch('/api/push/public-key',{cache:'no-store'}).then(r=>r.json());if(!k.ok||!k.publicKey)throw new Error('伺服器尚未設定背景推播金鑰');let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(k.publicKey)});const r=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:sub})});const x=await r.json().catch(()=>({}));if(!r.ok)throw new Error(x.error||'背景推播註冊失敗');localStorage.setItem('yipin_push_enabled','1');if(btn)btn.textContent='✅背景通知';await fetch('/api/push/test',{method:'POST'});alert('背景通知已啟用')}catch(e){alert(e.message||'無法啟用背景通知')}}
 async function restorePersistentLogin(){try{const r=await fetch('/api/admin/session',{cache:'no-store'});const x=await r.json().catch(()=>({}));if(!x.ok)return false;logged=true;localStorage.setItem(SESSION_KEY,'1');document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');document.getElementById('logoutBtn').style.display='';document.getElementById('syncText').textContent='已登入｜即時同步中';if(localStorage.getItem('yipin_push_enabled')==='1'){const b=document.getElementById('pushBtn');if(b)b.textContent='✅背景通知'}await load();return true}catch{return false}}
 
+
 function enableAudio(){
   try{
-    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
     if(audioCtx.state==='suspended') audioCtx.resume();
   }catch(e){}
 }
-function beep(){
-  try{
-    if(!audioCtx) return;
-    const osc=audioCtx.createOscillator();
-    const gain=audioCtx.createGain();
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.frequency.value=880;
-    gain.gain.setValueAtTime(.08,audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.25);
-    osc.start(); osc.stop(audioCtx.currentTime+.25);
-    if(navigator.vibrate) navigator.vibrate([120,70,120]);
-  }catch(e){}
+
+function loudTone(freq,start,duration,volume=.32){
+  if(!audioCtx || audioCtx.state!=='running') return;
+  const osc=audioCtx.createOscillator();
+  const gain=audioCtx.createGain();
+  osc.type='square';
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  const t=audioCtx.currentTime+start;
+  osc.frequency.setValueAtTime(freq,t);
+  gain.gain.setValueAtTime(volume,t);
+  gain.gain.exponentialRampToValueAtTime(.001,t+duration);
+  osc.start(t); osc.stop(t+duration);
 }
+
+function playOrderAlarm(){
+  if(!alarmActive) return;
+  enableAudio();
+  if(!audioCtx || audioCtx.state!=='running') return;
+
+  // 接單機風格：高低交錯八拍，明顯比原本 0.08 音量單音更醒目
+  const notes=[1040,820,1040,820,1180,900,1180,900];
+  notes.forEach((f,i)=>loudTone(f,i*.22,.18,.34));
+
+  if(navigator.vibrate){
+    try{navigator.vibrate([250,80,250,80,250,80,500])}catch(e){}
+  }
+}
+
+function updateAlarm(){
+  if(!logged) return stopAlarm();
+  const pending=allOrders.some(o=>o.status==='new');
+  if(pending) startAlarm();
+  else stopAlarm();
+}
+
+function startAlarm(){
+  if(alarmActive) return;
+  alarmActive=true;
+  const banner=document.getElementById('orderAlarm');
+  if(banner) banner.classList.add('show');
+  playOrderAlarm();
+  // 一輪約 1.7 秒，停一下後重播；直到所有新單都接掉
+  alarmTimer=setInterval(playOrderAlarm,3000);
+}
+
+function stopAlarm(){
+  alarmActive=false;
+  if(alarmTimer){clearInterval(alarmTimer);alarmTimer=null}
+  const banner=document.getElementById('orderAlarm');
+  if(banner) banner.classList.remove('show');
+  if(navigator.vibrate){try{navigator.vibrate(0)}catch(e){}}
+}
+
+// iOS/手機瀏覽器需要使用者手勢解鎖聲音。
+// 第一次點擊/觸控後即解鎖；若已有未接單，立刻開始警報。
+['click','touchstart','pointerdown'].forEach(evt=>{
+  document.addEventListener(evt,()=>{
+    enableAudio();
+    if(logged && allOrders.some(o=>o.status==='new')) startAlarm();
+  },{passive:true});
+});
 
 if(typeof io==='function'){
   const socket=io();
   socket.on('new-order',o=>{
-    beep();
     if(logged){
       currentTab='new';
       document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.status==='new'));
-      load();
+      load().then(updateAlarm);
     }
   });
   socket.on('order-updated',()=>{if(logged)load()});
