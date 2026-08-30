@@ -4,6 +4,7 @@ const { Server } = require("socket.io");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const webpush = require("web-push");
 
 const app = express();
 const server = http.createServer(app);
@@ -13,11 +14,19 @@ const ADMIN_PIN = process.env.ADMIN_PIN || "30242";
 const DATA_DIR = path.join(__dirname, "data");
 const DB = path.join(DATA_DIR, "orders.json");
 const SHARED_DB = path.join(DATA_DIR, "shared-carts.json");
+const PUSH_DB = path.join(DATA_DIR, "push-subscriptions.json");
 
 const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "";
 const LINE_NOTIFY_TARGET = process.env.LINE_NOTIFY_TARGET || "";
 const LINE_LOGIN_CHANNEL_ID = process.env.LINE_LOGIN_CHANNEL_ID || "2011256472";
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:yipin969@gmail.com";
+const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || (LINE_CHANNEL_SECRET || ADMIN_PIN || "yipin-admin-session");
+const ADMIN_COOKIE = "yipin_admin_session";
+const ADMIN_SESSION_DAYS = 180;
+if(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY){webpush.setVapidDetails(VAPID_SUBJECT,VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY);}
 
 // LINE Pay 正式環境（沿用你 Render 現有的 Key 名稱）
 const LINEPAY_CHANNEL_ID = process.env.LINEPAY_CHANNEL_ID || "";
@@ -30,10 +39,12 @@ const LINE_SEND_TOKEN_DB = path.join(DATA_DIR, "line-send-tokens.json");
 fs.mkdirSync(DATA_DIR,{recursive:true});
 if(!fs.existsSync(DB)) fs.writeFileSync(DB,"[]");
 if(!fs.existsSync(SHARED_DB)) fs.writeFileSync(SHARED_DB,"{}");
+if(!fs.existsSync(PUSH_DB)) fs.writeFileSync(PUSH_DB,"[]");
 if(!fs.existsSync(LINEPAY_PENDING_DB)) fs.writeFileSync(LINEPAY_PENDING_DB,"{}");
 if(!fs.existsSync(LINE_SEND_TOKEN_DB)) fs.writeFileSync(LINE_SEND_TOKEN_DB,"{}");
 
 app.use(express.json({limit:"1mb",verify:(req,res,buf)=>{req.rawBody=Buffer.from(buf)}}));
+app.use((req,res,next)=>{req.cookies={};String(req.headers.cookie||"").split(";").forEach(part=>{const i=part.indexOf("=");if(i<=0)return;const k=part.slice(0,i).trim(),v=part.slice(i+1).trim();try{req.cookies[k]=decodeURIComponent(v)}catch{req.cookies[k]=v}});next();});
 app.use(express.static(path.join(__dirname,"public")));
 
 function readJson(file,fallback){try{return JSON.parse(fs.readFileSync(file,"utf8"))}catch(e){return fallback}}
@@ -42,6 +53,8 @@ function readOrders(){return readJson(DB,[])}
 function writeOrders(x){writeJson(DB,x)}
 function readSharedCarts(){return readJson(SHARED_DB,{})}
 function writeSharedCarts(x){writeJson(SHARED_DB,x)}
+function readPushSubs(){return readJson(PUSH_DB,[])}
+function writePushSubs(x){writeJson(PUSH_DB,x)}
 function readLinePayPending(){return readJson(LINEPAY_PENDING_DB,{})}
 function writeLinePayPending(x){writeJson(LINEPAY_PENDING_DB,x)}
 function readLineSendTokens(){return readJson(LINE_SEND_TOKEN_DB,{})}
@@ -56,6 +69,17 @@ function sanitizeSharedItem(item){
   return x.name&&Number.isFinite(x.price)&&x.price>=0?x:null;
 }
 function sanitizeSharedCart(cart){return Array.isArray(cart)?cart.slice(0,100).map(sanitizeSharedItem).filter(Boolean):[]}
+
+
+function b64url(input){return Buffer.from(String(input),"utf8").toString("base64url")}
+function signAdminPayload(body){return crypto.createHmac("sha256",ADMIN_SESSION_SECRET).update(body).digest("base64url")}
+function createAdminSession(){const body=b64url(JSON.stringify({role:"admin",exp:Date.now()+ADMIN_SESSION_DAYS*86400000,nonce:crypto.randomBytes(8).toString("hex")}));return body+"."+signAdminPayload(body)}
+function verifyAdminSession(token){try{const [body,sig]=String(token||"").split(".");if(!body||!sig)return false;const expected=signAdminPayload(body);const a=Buffer.from(sig),b=Buffer.from(expected);if(a.length!==b.length||!crypto.timingSafeEqual(a,b))return false;const data=JSON.parse(Buffer.from(body,"base64url").toString("utf8"));return data?.role==="admin"&&Number(data.exp)>Date.now()}catch{return false}}
+function setAdminCookie(res,token){res.setHeader("Set-Cookie",`${ADMIN_COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=${ADMIN_SESSION_DAYS*86400}; HttpOnly; Secure; SameSite=Lax`)}
+function clearAdminCookie(res){res.setHeader("Set-Cookie",`${ADMIN_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`)}
+function adminLoggedIn(req){return verifyAdminSession(req.cookies?.[ADMIN_COOKIE])}
+function pushPayload(order,kind="new"){const unaccepted=readOrders().filter(o=>o.status==="new");if(kind==="reminder")return{title:`🔔 ${unaccepted.length} 筆訂單尚未接單`,body:`請開啟後台處理未接訂單。`,tag:"yipin-unaccepted",url:"/admin.html?from=push"};return{title:"🔔 一品現泡茶｜新訂單",body:`${order.id}｜${order.method==="外送"?"外送":"自取"}｜$${order.total}｜${order.name}`,tag:`yipin-order-${order.id}`,url:"/admin.html?from=push"}}
+async function sendWebPush(payload){if(!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)return{sent:0,configured:false};const subs=readPushSubs();const keep=[];let sent=0;for(const sub of subs){try{await webpush.sendNotification(sub,JSON.stringify(payload),{TTL:120,urgency:"high"});keep.push(sub);sent++}catch(e){const code=Number(e?.statusCode||0);if(code!==404&&code!==410)keep.push(sub);console.error("[PUSH] failed",code,e?.message)}}if(keep.length!==subs.length)writePushSubs(keep);return{sent,configured:true}}
 
 async function verifyLineIdToken(idToken){
   if(!idToken) return null;
@@ -329,6 +353,7 @@ function createPaidOrderFromPending(orderId,pending,transactionId){
   orders.unshift(order);
   writeOrders(orders);
   io.emit("new-order",order);
+  sendWebPush(pushPayload(order,"new")).catch(e=>console.error("[PUSH] paid order",e?.message));
   return order;
 }
 
@@ -421,6 +446,13 @@ app.delete("/api/line-send-token/:token",(req,res)=>{
   // Self-contained signed tokens do not require server-side deletion.
   res.json({ok:true,deleted:true});
 });
+
+
+app.get("/api/admin/session",(req,res)=>res.json({ok:adminLoggedIn(req)}));
+app.post("/api/admin/logout",(req,res)=>{clearAdminCookie(res);res.json({ok:true})});
+app.get("/api/push/public-key",(req,res)=>res.json({ok:Boolean(VAPID_PUBLIC_KEY),publicKey:VAPID_PUBLIC_KEY}));
+app.post("/api/push/subscribe",(req,res)=>{if(!adminLoggedIn(req))return res.status(401).json({error:"請先登入後台"});const sub=req.body?.subscription;if(!sub?.endpoint)return res.status(400).json({error:"缺少推播訂閱資料"});const list=readPushSubs().filter(x=>x?.endpoint!==sub.endpoint);list.push(sub);writePushSubs(list.slice(-20));res.json({ok:true,count:list.length})});
+app.post("/api/push/test",async(req,res)=>{if(!adminLoggedIn(req))return res.status(401).json({error:"請先登入後台"});const result=await sendWebPush({title:"✅ 一品接單背景通知測試",body:"背景推播已啟用。",tag:"yipin-test",url:"/admin.html"});res.json({ok:true,...result})});
 
 app.get("/api/health",(req,res)=>res.json({ok:true,service:"yipin-order",lineConfigured:Boolean(LINE_CHANNEL_ACCESS_TOKEN&&LINE_CHANNEL_SECRET)}));
 
@@ -697,11 +729,12 @@ app.post("/api/orders",async(req,res)=>{
   orders.unshift(order);
   writeOrders(orders);
   io.emit("new-order",order);
+  sendWebPush(pushPayload(order,"new")).catch(e=>console.error("[PUSH] new order",e?.message));
   res.json(order);
 });
 
 app.get("/api/orders/:id",(req,res)=>{const o=readOrders().find(x=>x.id===req.params.id);if(!o)return res.status(404).json({error:"找不到訂單"});res.json({id:o.id,status:o.status,pickup:o.pickup,total:o.total,createdAt:o.createdAt})});
-app.post("/api/admin/login",(req,res)=>res.json({ok:String(req.body?.pin||"")===ADMIN_PIN}));
+app.post("/api/admin/login",(req,res)=>{const ok=String(req.body?.pin||"")===ADMIN_PIN;if(ok)setAdminCookie(res,createAdminSession());res.json({ok})});
 app.get("/api/admin/orders",(req,res)=>res.json(readOrders()));
 app.post("/api/admin/orders/:id/status",async(req,res)=>{
   const allowed=["new","accepted","making","done","cancelled"];
@@ -726,4 +759,6 @@ io.on("connection",socket=>{
   socket.on("join-shared-cart",id=>{id=String(id||"");if(id&&id.length<80)socket.join(`shared-cart:${id}`)});
   socket.on("leave-shared-cart",id=>{id=String(id||"");if(id&&id.length<80)socket.leave(`shared-cart:${id}`)});
 });
+let lastPushReminderAt=0;
+setInterval(async()=>{try{if(!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)return;const unaccepted=readOrders().filter(o=>o.status==="new");if(!unaccepted.length)return;if(Date.now()-lastPushReminderAt<55000)return;lastPushReminderAt=Date.now();await sendWebPush(pushPayload(null,"reminder"))}catch(e){console.error("[PUSH] reminder failed",e?.message)}},15000);
 server.listen(PORT,()=>console.log(`一品現泡茶 order system listening on :${PORT}`));
