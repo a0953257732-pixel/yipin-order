@@ -257,6 +257,9 @@ body{font-size:17px !important}
 .order-alarm{display:none;position:sticky;top:0;z-index:100;background:#b91c1c;color:#fff;padding:14px;text-align:center;font-size:21px;font-weight:950;animation:alarmFlash .55s infinite alternate}
 .order-alarm.show{display:block}
 @keyframes alarmFlash{from{background:#991b1b}to{background:#ef4444}}
+
+.sound-unlock{width:100%;border:0;border-radius:14px;padding:17px 12px;margin:0 0 14px;background:#b91c1c;color:#fff;font-size:21px;font-weight:950;box-shadow:0 5px 14px rgba(185,28,28,.25)}
+.sound-unlock.ready{background:#07502f}.sound-unlock:active{transform:scale(.99)}
 </style>
 </head>
 <body>
@@ -282,6 +285,8 @@ body{font-size:17px !important}
   </div>
 
   <div id="app" class="hidden">
+<button id="soundUnlock" class="sound-unlock" type="button" onclick="unlockOrderSound()">🔊 開啟接單鈴聲（請先按一次）</button>
+
     <div class="install-tip">
       📱 可加入手機主畫面：iPhone Safari → 分享 →「加入主畫面」；Android Chrome → 選單 →「加到主畫面 / 安裝應用程式」。
     </div>
@@ -493,6 +498,27 @@ function enableAudio(){
   }catch(e){}
 }
 
+
+async function unlockOrderSound(){
+  try{
+    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    await audioCtx.resume();
+    const now=audioCtx.currentTime;
+    const p=[[880,0,.18],[1175,.20,.18],[880,.40,.18],[1175,.60,.26],[1320,.95,.16],[1320,1.14,.16],[1050,1.33,.28]];
+    p.forEach(([f,s,d])=>{
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type='square'; o.frequency.setValueAtTime(f,now+s);
+      g.gain.setValueAtTime(.42,now+s); g.gain.exponentialRampToValueAtTime(.001,now+s+d);
+      o.connect(g); g.connect(audioCtx.destination); o.start(now+s); o.stop(now+s+d);
+    });
+    localStorage.setItem('yipinSoundEnabled','1');
+    const b=document.getElementById('soundUnlock');
+    if(b){b.classList.add('ready');b.textContent='✅ 接單鈴聲已開啟｜點我測試聲音'}
+    if(alarmActive) setTimeout(playOrderAlarm,1700);
+  }catch(e){
+    alert('無法開啟鈴聲，請把 iPhone 媒體音量調高後再試。');
+  }
+}
 function loudTone(freq,start,duration,volume=.32){
   if(!audioCtx || audioCtx.state!=='running') return;
   const osc=audioCtx.createOscillator();
