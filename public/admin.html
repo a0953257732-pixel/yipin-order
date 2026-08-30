@@ -253,6 +253,13 @@ body{font-size:17px !important}
   .tab{font-size:17px !important}
 }
 
+
+.order-alarm{display:none;position:sticky;top:0;z-index:100;background:#b91c1c;color:#fff;padding:13px 12px;text-align:center;font-size:19px;font-weight:950;letter-spacing:.5px;box-shadow:0 4px 16px rgba(0,0,0,.25);animation:alarmFlash .8s infinite alternate}
+.order-alarm.show{display:block}
+.order-alarm button{margin-left:8px;border:2px solid #fff;background:#fff;color:#8b1111;border-radius:10px;padding:7px 10px;font-weight:950}
+@keyframes alarmFlash{from{background:#991b1b}to{background:#dc2626}}
+body.alarming header{box-shadow:0 0 0 4px #ef4444 inset}
+
 </style>
 </head>
 <body>
@@ -268,6 +275,12 @@ body{font-size:17px !important}
     </div>
   </div>
 </header>
+
+<div id="orderAlarm" class="order-alarm">
+  🔔 有新訂單尚未接單！
+  <button id="enableSoundBtn" onclick="enableAudio(true)">啟用鈴聲</button>
+</div>
+
 
 <main>
   <div id="login" class="login">
@@ -306,7 +319,11 @@ let allOrders=[];
 let currentTab='new';
 let audioCtx=null;
 
-const SESSION_KEY='yipin_admin_logged_v1';
+const SESSION_KEY='yipin_admin_logged_v2';
+const PIN_KEY='yipin_admin_pin_v1';
+let alarmTimer=null;
+let alarmActive=false;
+let audioUnlocked=false;
 
 function escapeHtml(v){
   return String(v??'').replace(/[&<>"']/g,s=>({
@@ -338,27 +355,45 @@ function fulfillmentLabel(o){
     : '<span class="pill pickup">🏪 自取</span>';
 }
 
-async function login(){
-  const pin=document.getElementById('pin').value.trim();
-  const r=await fetch('/api/admin/login',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({pin})
-  });
-  const x=await r.json().catch(()=>({}));
-  if(!x.ok) return alert('PIN 錯誤');
-
-  logged=true;
-  sessionStorage.setItem(SESSION_KEY,'1');
-  document.getElementById('login').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-  document.getElementById('logoutBtn').style.display='';
-  document.getElementById('syncText').textContent='已登入｜即時同步中';
-  enableAudio();
-  load();
+async function login(auto=false){
+  const pin=(auto ? (localStorage.getItem(PIN_KEY)||'') : document.getElementById('pin').value.trim());
+  if(!pin){
+    if(auto) return false;
+    return alert('請輸入 PIN');
+  }
+  try{
+    const r=await fetch('/api/admin/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({pin})
+    });
+    const x=await r.json().catch(()=>({}));
+    if(!x.ok){
+      localStorage.removeItem(PIN_KEY);
+      localStorage.removeItem(SESSION_KEY);
+      if(!auto) alert('PIN 錯誤');
+      return false;
+    }
+    logged=true;
+    localStorage.setItem(PIN_KEY,pin);
+    localStorage.setItem(SESSION_KEY,'1');
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('logoutBtn').style.display='';
+    document.getElementById('syncText').textContent='已登入｜即時同步中';
+    if(!auto) enableAudio(true);
+    await load();
+    return true;
+  }catch(e){
+    if(!auto) alert('目前無法登入後台，請稍後再試');
+    return false;
+  }
 }
 
 function logout(){
+  stopAlarm();
+  localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(PIN_KEY);
   sessionStorage.removeItem(SESSION_KEY);
   location.reload();
 }
@@ -369,6 +404,7 @@ async function load(){
     const r=await fetch('/api/admin/orders',{cache:'no-store'});
     allOrders=await r.json();
     render();
+    updateAlarmState();
     document.getElementById('syncText').textContent='已同步｜'+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
   }catch(e){
     document.getElementById('syncText').textContent='同步失敗';
@@ -451,6 +487,7 @@ async function moveOrder(id,status){
       throw new Error(e.error||'更新失敗');
     }
     await load();
+    updateAlarmState();
     if(status==='accepted') switchTab('accepted',document.querySelector('.tab[data-status="accepted"]'));
     if(status==='making') switchTab('making',document.querySelector('.tab[data-status="making"]'));
     if(status==='done') switchTab('done',document.querySelector('.tab[data-status="done"]'));
@@ -469,34 +506,87 @@ async function copyAddress(encoded){
   }
 }
 
-function enableAudio(){
+
+function enableAudio(fromUser=false){
   try{
-    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-    if(audioCtx.state==='suspended') audioCtx.resume();
-  }catch(e){}
+    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const unlock=()=>{
+      audioUnlocked=true;
+      const btn=document.getElementById('enableSoundBtn');
+      if(btn) btn.style.display='none';
+      if(alarmActive) playAlarmPattern();
+    };
+    if(audioCtx.state==='suspended') audioCtx.resume().then(unlock).catch(()=>{});
+    else unlock();
+  }catch(e){console.warn('AudioContext unavailable',e)}
 }
-function beep(){
-  try{
-    if(!audioCtx) return;
-    const osc=audioCtx.createOscillator();
-    const gain=audioCtx.createGain();
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.frequency.value=880;
-    gain.gain.setValueAtTime(.08,audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.25);
-    osc.start(); osc.stop(audioCtx.currentTime+.25);
-    if(navigator.vibrate) navigator.vibrate([120,70,120]);
-  }catch(e){}
+
+function alarmTone(freq=920,startOffset=0,duration=.28,volume=.20){
+  if(!audioCtx || audioCtx.state!=='running') return;
+  const osc=audioCtx.createOscillator();
+  const gain=audioCtx.createGain();
+  osc.type='square';
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  const t=audioCtx.currentTime+startOffset;
+  osc.frequency.setValueAtTime(freq,t);
+  gain.gain.setValueAtTime(volume,t);
+  gain.gain.exponentialRampToValueAtTime(.001,t+duration);
+  osc.start(t); osc.stop(t+duration);
 }
+
+function playAlarmPattern(){
+  if(!alarmActive) return;
+  if(!audioCtx || audioCtx.state!=='running'){
+    const btn=document.getElementById('enableSoundBtn');
+    if(btn) btn.style.display='';
+    return;
+  }
+  alarmTone(980,0,.30,.22);
+  alarmTone(760,.38,.30,.22);
+  alarmTone(980,.76,.38,.24);
+  if(navigator.vibrate){try{navigator.vibrate([250,100,250,100,400])}catch(e){}}
+}
+
+function startAlarm(){
+  if(alarmActive) return;
+  alarmActive=true;
+  document.body.classList.add('alarming');
+  const box=document.getElementById('orderAlarm');
+  if(box) box.classList.add('show');
+  playAlarmPattern();
+  alarmTimer=setInterval(()=>{if(alarmActive) playAlarmPattern()},2200);
+}
+
+function stopAlarm(){
+  alarmActive=false;
+  document.body.classList.remove('alarming');
+  if(alarmTimer){clearInterval(alarmTimer);alarmTimer=null}
+  const box=document.getElementById('orderAlarm');
+  if(box) box.classList.remove('show');
+  if(navigator.vibrate){try{navigator.vibrate(0)}catch(e){}}
+}
+
+function updateAlarmState(){
+  if(!logged){stopAlarm();return}
+  const unaccepted=allOrders.filter(o=>o.status==='new').length;
+  if(unaccepted>0){
+    const box=document.getElementById('orderAlarm');
+    if(box) box.firstChild.textContent=`🔔 ${unaccepted} 筆新訂單尚未接單！ `;
+    startAlarm();
+  }else stopAlarm();
+}
+
+['pointerdown','touchstart','click'].forEach(evt=>{
+  document.addEventListener(evt,()=>{if(!audioUnlocked) enableAudio(true)},{passive:true});
+});
 
 if(typeof io==='function'){
   const socket=io();
   socket.on('new-order',o=>{
-    beep();
     if(logged){
       currentTab='new';
       document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.status==='new'));
-      load();
+      load().then(()=>updateAlarmState());
     }
   });
   socket.on('order-updated',()=>{if(logged)load()});
@@ -504,14 +594,20 @@ if(typeof io==='function'){
 
 setInterval(load,5000);
 
-document.addEventListener('DOMContentLoaded',()=>{
-  if(sessionStorage.getItem(SESSION_KEY)==='1'){
-    logged=true;
-    document.getElementById('login').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    document.getElementById('logoutBtn').style.display='';
-    document.getElementById('syncText').textContent='已登入｜即時同步中';
-    load();
+document.addEventListener('DOMContentLoaded',async()=>{
+  const saved=localStorage.getItem(SESSION_KEY)==='1' && !!localStorage.getItem(PIN_KEY);
+  const savedPin=localStorage.getItem(PIN_KEY)||'';
+  if(savedPin && document.getElementById('pin')) document.getElementById('pin').value=savedPin;
+
+  if(saved){
+    document.getElementById('syncText').textContent='正在自動登入…';
+    const ok=await login(true);
+    if(!ok){
+      document.getElementById('login').classList.remove('hidden');
+      document.getElementById('app').classList.add('hidden');
+      document.getElementById('logoutBtn').style.display='none';
+      document.getElementById('syncText').textContent='請登入';
+    }
   }
 });
 
