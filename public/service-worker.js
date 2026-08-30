@@ -1,35 +1,6 @@
-const CACHE="yipin-admin-v3";
-const STATIC=["/manifest.json"];
-
-self.addEventListener("install",event=>{
-  self.skipWaiting();
-  event.waitUntil(caches.open(CACHE).then(c=>c.addAll(STATIC)));
-});
-
-self.addEventListener("activate",event=>{
-  event.waitUntil(
-    caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))
-  );
-  self.clients.claim();
-});
-
-self.addEventListener("fetch",event=>{
-  const req=event.request;
-  if(req.method!=="GET") return;
-  const url=new URL(req.url);
-
-  if(url.pathname.startsWith("/api/") || url.pathname.startsWith("/socket.io/")) return;
-
-  if(url.pathname==="/admin.html" || url.pathname==="/"){
-    event.respondWith(fetch(req,{cache:"no-store"}).catch(()=>caches.match(req)));
-    return;
-  }
-
-  event.respondWith(
-    fetch(req).then(res=>{
-      const copy=res.clone();
-      caches.open(CACHE).then(c=>c.put(req,copy)).catch(()=>{});
-      return res;
-    }).catch(()=>caches.match(req))
-  );
-});
+const CACHE="yipin-admin-v10";
+self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(["/admin.html","/manifest.json"])).catch(()=>{}))});
+self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+self.addEventListener("fetch",e=>{const u=new URL(e.request.url);if(u.pathname==="/admin.html"||u.pathname.startsWith("/api/"))e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))});
+self.addEventListener("push",e=>{let d={};try{d=e.data?e.data.json():{}}catch{};e.waitUntil(self.registration.showNotification(d.title||"🔔 一品接單",{body:d.body||"有新訂單",tag:d.tag||"yipin-order",renotify:true,requireInteraction:true,data:{url:d.url||"/admin.html"},vibrate:[300,120,300,120,600]}))});
+self.addEventListener("notificationclick",e=>{e.notification.close();const url=e.notification.data?.url||"/admin.html";e.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(list=>{for(const c of list){if("focus"in c){c.navigate(url);return c.focus()}}return clients.openWindow(url)}))});
