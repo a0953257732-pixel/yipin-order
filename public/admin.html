@@ -1,607 +1,143 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#07502f">
-<link rel="manifest" href="/manifest.json">
-<title>一品接單｜新生南店</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>一品現泡茶｜接單後台</title>
+<script src="/socket.io/socket.io.js"></script>
 <style>
-:root{
-  --green:#07502f;--green2:#0b6a40;--cream:#f6f4ed;--paper:#fff;--ink:#243029;
-  --muted:#6d756f;--line:#e5e8e5;--orange:#cc8b1e;--red:#b84343;--shadow:0 8px 24px rgba(0,0,0,.08)
-}
-*{box-sizing:border-box}
-html,body{margin:0;max-width:100%;overflow-x:hidden;background:#f3f5f3;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Microsoft JhengHei",Arial,sans-serif}
-button,input{font:inherit}
-body{padding-bottom:env(safe-area-inset-bottom)}
-header{
-  position:sticky;top:0;z-index:50;background:var(--green);color:#fff;
-  padding:12px 14px calc(12px + env(safe-area-inset-top));box-shadow:0 2px 10px #0002
-}
-.topline{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.brand{font-weight:950;font-size:17px;letter-spacing:.5px}
-.header-actions{display:flex;align-items:center;gap:8px}
-.iconbtn{border:0;background:#ffffff18;color:#fff;border-radius:11px;padding:9px 11px;font-weight:900}
-main{max-width:760px;margin:auto;padding:10px 10px 28px}
-.login{background:#fff;padding:20px;border-radius:18px;max-width:420px;margin:45px auto;box-shadow:var(--shadow)}
-.login h2{margin:0 0 12px}
-.login input{width:100%;padding:14px;margin:8px 0;border:1px solid #dfe4df;border-radius:12px}
-.login button{width:100%;padding:14px;background:var(--green);color:#fff;border:0;border-radius:12px;font-weight:950;margin-top:6px}
-.hidden{display:none!important}
-
-.summary{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0
-}
-.sum-card{background:#fff;border-radius:14px;padding:10px 8px;text-align:center;box-shadow:var(--shadow)}
-.sum-card b{display:block;font-size:20px;color:var(--green)}
-.sum-card span{font-size:11px;color:var(--muted);font-weight:800}
-
-.tabs{
-  position:sticky;top:61px;z-index:40;display:grid;grid-template-columns:repeat(4,1fr);
-  background:#f3f5f3;padding:8px 0 9px;gap:6px
-}
-.tab{
-  border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 4px;
-  font-size:12px;font-weight:900;color:#59635c
-}
-.tab.active{background:var(--green);color:#fff;border-color:var(--green)}
-.badge{
-  display:inline-flex;min-width:20px;height:20px;padding:0 6px;align-items:center;justify-content:center;
-  border-radius:999px;background:#eee;color:#555;margin-left:3px;font-size:11px
-}
-.tab.active .badge{background:#fff2;color:#fff}
-
-.section-title{font-size:13px;color:var(--muted);font-weight:900;margin:6px 2px 8px}
-.order-list{display:grid;gap:10px}
-.card{
-  background:#fff;border-radius:16px;padding:14px;box-shadow:var(--shadow);border:1px solid #edf0ed
-}
-.card.new{border-left:5px solid var(--red)}
-.card.accepted{border-left:5px solid var(--green2)}
-.card.making{border-left:5px solid var(--orange)}
-.card.done{
-  opacity:1;
-  background:#fff;
-  border:1px solid #dfe6e0;
-  border-left:5px solid #4d6f52;
-}
-.headrow{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
-.order-id{font-weight:950;color:var(--green);font-size:15px}
-.timebig{font-weight:950;font-size:20px;white-space:nowrap}
-.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900;background:#eef2ef}
-.pill.pay{background:#eaf6ee;color:#116134}
-.pill.cash{background:#fff5df;color:#94620a}
-.pill.delivery{background:#fff0e8;color:#a14e18}
-.pill.pickup{background:#edf3ff;color:#355b8b}
-.customer{margin-top:10px;font-size:14px;line-height:1.7}
-.customer a{text-decoration:none;color:var(--green);font-weight:900}
-.addressbox{margin-top:8px;padding:10px;border-radius:10px;background:#faf7ef;font-size:13px;line-height:1.5}
-.items{margin-top:11px;border-top:1px dashed #dfe3df}
-.item{padding:10px 0;border-bottom:1px dashed #edf0ed}
-.item b{font-size:14px}
-.sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.55}
-.footerrow{display:flex;justify-content:space-between;align-items:end;gap:8px;margin-top:12px}
-.total{font-size:22px;font-weight:950;color:var(--green)}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
-.actions.one{grid-template-columns:1fr}
-.actions button{border:0;border-radius:12px;min-height:48px;padding:12px;font-weight:950}
-.accept{background:var(--green);color:#fff}
-.making{background:var(--orange);color:#fff}
-.done{background:#4d6f52;color:#fff}
-.cancel{background:#f1f1f1;color:#555}
-.copy{background:#eef3ef;color:var(--green)}
-.empty{background:#fff;border-radius:14px;padding:34px 10px;text-align:center;color:#888}
-.statusline{font-size:11px;color:#dfeee5}
-.install-tip{
-  margin:10px 0;background:#eef5ef;border:1px solid #dce7de;color:#3d5f4b;border-radius:12px;
-  padding:10px 12px;font-size:12px;line-height:1.5
-}
-
-/* ===== 已完成訂單：高對比清晰版 ===== */
-.card.done .order-id{color:#07502f}
-.card.done .timebig{color:#243029}
-.card.done .small{color:#59635c}
-.card.done .customer{color:#243029}
-.card.done .customer b{color:#243029}
-.card.done .customer a{color:#07502f}
-.card.done .addressbox{
-  background:#faf7ef;
-  color:#243029;
-  border:1px solid #eee6d4;
-}
-.card.done .item{border-bottom:1px dashed #d9dfda}
-.card.done .item b{color:#243029}
-.card.done .sub{color:#59635c}
-.card.done .total{color:#07502f}
-.card.done .pill.cash{background:#fff5df;color:#805306}
-.card.done .pill.pay{background:#eaf6ee;color:#0d5a2f}
-.card.done .pill.delivery{background:#fff0e8;color:#914313}
-.card.done .pill.pickup{background:#edf3ff;color:#31537d}
-
-@media(min-width:700px){
-  main{max-width:1100px}
-  .order-list{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .tabs{top:61px}
-}
-
-/* ===== 輕微視障友善版 v4：製作中 / 已完成高對比＋大字 ===== */
-
-/* 整體基礎字級提高 */
-body{font-size:17px !important}
-.brand{font-size:22px !important}
-.statusline{font-size:14px !important}
-.iconbtn{font-size:18px !important;min-height:48px !important;padding:10px 14px !important}
-.install-tip{font-size:15px !important;line-height:1.7 !important}
-.sum-card b{font-size:30px !important}
-.sum-card span{font-size:15px !important;color:#2f3732 !important}
-.tab{font-size:16px !important;min-height:52px !important}
-.badge{font-size:14px !important;min-width:26px !important;height:26px !important}
-.section-title{font-size:20px !important;color:#1e2822 !important}
-
-/* 所有訂單卡的文字都提高 */
-.card{
-  background:#ffffff !important;
-  color:#111111 !important;
-  border:2px solid #cfd8d2 !important;
-  box-shadow:0 4px 16px rgba(0,0,0,.10) !important;
-  opacity:1 !important;
-}
-.order-id{font-size:22px !important;color:#004d2d !important;font-weight:950 !important}
-.timebig{font-size:27px !important;color:#111111 !important;font-weight:950 !important}
-.small{font-size:16px !important;color:#303733 !important}
-.customer{font-size:18px !important;line-height:1.8 !important;color:#111111 !important}
-.customer b{font-size:19px !important;color:#111111 !important}
-.customer a{font-size:18px !important;color:#004d2d !important;text-decoration:underline !important}
-.pill{
-  font-size:15px !important;
-  padding:8px 11px !important;
-  border-width:2px !important;
-  border-style:solid !important;
-}
-.item{padding:14px 0 !important}
-.item b{font-size:20px !important;color:#000000 !important;font-weight:950 !important}
-.sub{font-size:17px !important;color:#343a36 !important;line-height:1.75 !important;opacity:1 !important}
-.addressbox{
-  font-size:17px !important;
-  line-height:1.75 !important;
-  background:#fffaf0 !important;
-  color:#111111 !important;
-  border:2px solid #d8c9a6 !important;
-}
-.total{font-size:31px !important;color:#004d2d !important;font-weight:950 !important}
-.actions button{font-size:19px !important;min-height:60px !important}
-
-/* 製作中：淡黃色底＋深橘框＋黑字 */
-.card.making{
-  background:#fff8df !important;
-  color:#111111 !important;
-  border:3px solid #d97706 !important;
-  border-left:9px solid #b45309 !important;
-}
-.card.making .order-id{color:#8a3f00 !important}
-.card.making .timebig,
-.card.making .customer,
-.card.making .customer b,
-.card.making .item b{color:#111111 !important}
-.card.making .small,
-.card.making .sub{color:#2d2d2d !important}
-.card.making .total{color:#8a3f00 !important}
-
-/* 已完成：純白底＋深綠框＋黑字，避免整卡灰綠 */
-.card.done{
-  background:#ffffff !important;
-  color:#111111 !important;
-  border:3px solid #07502f !important;
-  border-left:9px solid #07502f !important;
-  opacity:1 !important;
-}
-.card.done .order-id{color:#00512f !important}
-.card.done .timebig,
-.card.done .customer,
-.card.done .customer b,
-.card.done .item b{color:#111111 !important}
-.card.done .small,
-.card.done .sub{color:#303733 !important}
-.card.done .total{color:#00512f !important}
-
-/* 標籤也加強對比 */
-.pill.pay{
-  background:#e8f7ed !important;
-  color:#064b28 !important;
-  border-color:#5fbf7d !important;
-}
-.pill.cash{
-  background:#fff0c8 !important;
-  color:#704500 !important;
-  border-color:#d8a93d !important;
-}
-.pill.delivery{
-  background:#fff0e9 !important;
-  color:#8a2e00 !important;
-  border-color:#e28a5c !important;
-}
-.pill.pickup{
-  background:#e9f1ff !important;
-  color:#173e6d !important;
-  border-color:#83a9d5 !important;
-}
-
-/* 狀態按鈕：更大、更鮮明 */
-.making{
-  background:#b45309 !important;
-  color:#ffffff !important;
-}
-.done{
-  background:#07502f !important;
-  color:#ffffff !important;
-}
-
-/* 手機額外放大 */
-@media(max-width:560px){
-  main{padding:10px 8px 28px !important}
-  .card{padding:18px !important;border-radius:18px !important}
-  .order-id{font-size:23px !important}
-  .timebig{font-size:28px !important}
-  .customer{font-size:19px !important}
-  .item b{font-size:21px !important}
-  .sub{font-size:18px !important}
-  .small{font-size:17px !important}
-  .total{font-size:33px !important}
-  .section-title{font-size:22px !important}
-  .tab{font-size:17px !important}
-}
-
-
-.order-alarm{display:none;position:sticky;top:0;z-index:100;background:#b91c1c;color:#fff;padding:14px;text-align:center;font-size:21px;font-weight:950;animation:alarmFlash .55s infinite alternate}
-.order-alarm.show{display:block}
-@keyframes alarmFlash{from{background:#991b1b}to{background:#ef4444}}
-
-.sound-unlock{width:100%;border:0;border-radius:14px;padding:17px 12px;margin:0 0 14px;background:#b91c1c;color:#fff;font-size:21px;font-weight:950;box-shadow:0 5px 14px rgba(185,28,28,.25)}
-.sound-unlock.ready{background:#07502f}.sound-unlock:active{transform:scale(.99)}
+:root{--bg:#f5f4ef;--card:#fff;--ink:#183028;--muted:#6e7a75;--line:#dedfd9;--green:#1f5b46;--green2:#e8f1ed;--orange:#a86014;--red:#a43a34;--shadow:0 8px 24px rgba(31,45,39,.08)}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select{font:inherit}.hidden{display:none!important}
+.login{min-height:100vh;display:grid;place-items:center;padding:24px}.login-card{width:min(420px,100%);background:#fff;border:1px solid var(--line);border-radius:22px;padding:28px;box-shadow:var(--shadow)}
+.logo{font:700 26px/1.2 Georgia,"Noto Serif TC",serif;margin-bottom:6px}.sub{color:var(--muted);font-size:14px}.login input{width:100%;margin:24px 0 12px;padding:14px 16px;border:1px solid #ccd2ce;border-radius:12px;font-size:18px}.primary{border:0;background:var(--green);color:#fff;border-radius:12px;padding:13px 18px;font-weight:700;cursor:pointer}.login .primary{width:100%}
+header{position:sticky;top:0;z-index:10;background:rgba(245,244,239,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}.head{max-width:1280px;margin:auto;padding:14px 18px;display:flex;gap:16px;align-items:center;justify-content:space-between}.brand strong{font-size:20px}.brand small{display:block;color:var(--muted);margin-top:2px}.head-actions{display:flex;gap:8px}.ghost{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:9px 12px;cursor:pointer}
+main{max-width:1280px;margin:0 auto;padding:20px 18px 80px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}.stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px}.stat b{font-size:26px}.stat span{display:block;color:var(--muted);font-size:13px;margin-top:4px}
+.tabs{display:flex;gap:8px;margin:16px 0}.tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 16px;cursor:pointer;font-weight:700}.tab.active{background:var(--green);border-color:var(--green);color:#fff}.badge{display:inline-block;min-width:22px;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.18);font-size:12px;margin-left:6px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.toolbar input,.toolbar select{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px}.toolbar input{min-width:260px;flex:1}.note{font-size:13px;color:var(--muted);margin:8px 0 14px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.order{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 3px 14px rgba(31,45,39,.04)}.order.new{border-left:5px solid #d69228}.order.accepted{border-left:5px solid #2f7b5d}.order.making{border-left:5px solid #5277a8}.order.done{border-left:5px solid #75817c;opacity:.96}.order.cancelled{border-left:5px solid #b24b44;opacity:.88}.top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.oid{font-weight:800;font-size:18px}.time{color:var(--muted);font-size:13px;margin-top:4px}.status{white-space:nowrap;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800}.status.new{background:#fff2dd;color:#8b550d}.status.accepted{background:#e6f3ed;color:#235d48}.status.making{background:#e9f0f8;color:#345b88}.status.done{background:#edf0ef;color:#52615b}.status.cancelled{background:#f8e8e7;color:#8d342f}
+.customer{margin:14px 0 10px;padding:11px 12px;background:#f8f8f5;border-radius:12px;display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:14px}.customer b{font-weight:700}.items{border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);padding:10px 0;margin:10px 0}.item{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:14px}.item small{color:var(--muted);display:block;margin-top:2px}.total{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:18px;margin-top:10px}.remark{margin-top:8px;padding:9px 10px;background:#fff8e9;border-radius:10px;font-size:13px}.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px}.actions button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 10px;cursor:pointer}.actions button.on{background:var(--green2);border-color:#aac8bb;color:var(--green);font-weight:700}.actions .danger{color:var(--red)}
+.empty{background:#fff;border:1px dashed #cfd5d1;border-radius:16px;padding:44px 20px;text-align:center;color:var(--muted);grid-column:1/-1}.error{color:#a43a34;margin-top:10px;font-size:14px}.history-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.countline{color:var(--muted);font-size:13px}
+@media(max-width:850px){.stats{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.head{align-items:flex-start}.customer{grid-template-columns:1fr}.toolbar input{min-width:100%}}
 </style>
 </head>
 <body>
-<header>
-  <div class="topline">
-    <div>
-      <div class="brand">一品接單｜新生南店</div>
-      <div class="statusline" id="syncText">等待登入</div>
-    </div>
-    <div class="header-actions">
-      <button class="iconbtn" id="pushBtn" onclick="enablePush()">🔔背景通知</button><button class="iconbtn" onclick="load()">↻</button>
-      <button class="iconbtn" id="logoutBtn" onclick="logout()" style="display:none">登出</button>
-    </div>
+<section id="login" class="login">
+  <div class="login-card">
+    <div class="logo">一品現泡茶</div>
+    <div class="sub">門市接單後台</div>
+    <input id="pin" type="password" inputmode="numeric" placeholder="輸入管理 PIN" autocomplete="current-password" />
+    <button class="primary" onclick="login()">登入後台</button>
+    <div id="loginErr" class="error"></div>
   </div>
-</header>
-<div id="orderAlarm" class="order-alarm">🔔 新訂單尚未接單！持續警報中</div>
+</section>
 
+<div id="app" class="hidden">
+<header><div class="head">
+  <div class="brand"><strong>一品現泡茶｜接單後台</strong><small id="lastUpdate">—</small></div>
+  <div class="head-actions"><button class="ghost" onclick="loadOrders()">重新整理</button><button class="ghost" onclick="logout()">登出</button></div>
+</div></header>
 <main>
-  <div id="login" class="login">
-    <h2>店家登入</h2>
-    <input id="pin" type="password" inputmode="numeric" placeholder="請輸入後台 PIN">
-    <button onclick="login()">登入</button>
+  <section class="stats">
+    <div class="stat"><b id="sNew">0</b><span>新訂單</span></div>
+    <div class="stat"><b id="sDoing">0</b><span>處理中</span></div>
+    <div class="stat"><b id="sDoneToday">0</b><span>今日已完成</span></div>
+    <div class="stat"><b id="sTodaySales">$0</b><span>今日訂單金額</span></div>
+  </section>
+
+  <div class="tabs">
+    <button id="tabActive" class="tab active" onclick="setTab('active')">進行中 <span id="activeBadge" class="badge">0</span></button>
+    <button id="tabHistory" class="tab" onclick="setTab('history')">歷史訂單 <span id="historyBadge" class="badge">0</span></button>
   </div>
 
-  <div id="app" class="hidden">
-<button id="soundUnlock" class="sound-unlock" type="button" onclick="unlockOrderSound()">🔊 開啟接單鈴聲（請先按一次）</button>
+  <section id="activePanel">
+    <div class="note">新訂單、已接單與製作中的訂單會留在這裡；按「完成」後會移到歷史訂單，不會直接消失。</div>
+    <div id="activeGrid" class="grid"></div>
+  </section>
 
-    <div class="install-tip">
-      📱 可加入手機主畫面：iPhone Safari → 分享 →「加入主畫面」；Android Chrome → 選單 →「加到主畫面 / 安裝應用程式」。
+  <section id="historyPanel" class="hidden">
+    <div class="history-head">
+      <div class="toolbar" style="flex:1">
+        <input id="q" placeholder="搜尋訂單編號、姓名、電話" oninput="renderHistory()" />
+        <select id="range" onchange="renderHistory()">
+          <option value="7">最近 7 天</option>
+          <option value="30" selected>最近 30 天</option>
+          <option value="90">最近 90 天</option>
+          <option value="all">全部</option>
+        </select>
+        <select id="hstatus" onchange="renderHistory()">
+          <option value="all">完成＋取消</option>
+          <option value="done">只看完成</option>
+          <option value="cancelled">只看取消</option>
+        </select>
+      </div>
+      <div id="historyCount" class="countline"></div>
     </div>
-
-    <div class="summary">
-      <div class="sum-card"><b id="sumNew">0</b><span>新訂單</span></div>
-      <div class="sum-card"><b id="sumMaking">0</b><span>處理中</span></div>
-      <div class="sum-card"><b id="sumToday">0</b><span>今日訂單</span></div>
-    </div>
-
-    <div class="tabs">
-      <button class="tab active" data-status="new" onclick="switchTab('new',this)">新單 <span class="badge" id="bnew">0</span></button>
-      <button class="tab" data-status="accepted" onclick="switchTab('accepted',this)">已接 <span class="badge" id="baccepted">0</span></button>
-      <button class="tab" data-status="making" onclick="switchTab('making',this)">製作 <span class="badge" id="bmaking">0</span></button>
-      <button class="tab" data-status="done" onclick="switchTab('done',this)">完成 <span class="badge" id="bdone">0</span></button>
-    </div>
-
-    <div class="section-title" id="sectionTitle">🔔 新訂單</div>
-    <div id="list" class="order-list"></div>
-  </div>
+    <div class="note">歷史訂單預設顯示最近 30 天；你也可以切換成 90 天或全部。</div>
+    <div id="historyGrid" class="grid"></div>
+  </section>
 </main>
-
-<script src="/socket.io/socket.io.js"></script>
+</div>
 <script>
-let logged=false;
-let allOrders=[];
-let currentTab='new';
-let audioCtx=null;
-let alarmTimer=null;
-let alarmActive=false;
-
-const SESSION_KEY='yipin_admin_logged_v3';
-
-function escapeHtml(v){
-  return String(v??'').replace(/[&<>"']/g,s=>({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
-  }[s]));
-}
-function fmtTime(v){
-  const d=new Date(v);
-  if(Number.isNaN(d.getTime())) return String(v||'');
-  return d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false});
-}
-function fmtDateTime(v){
-  const d=new Date(v);
-  if(Number.isNaN(d.getTime())) return String(v||'');
-  return d.toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
-}
-function isToday(v){
-  const d=new Date(v); const n=new Date();
-  return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate();
-}
-function paymentLabel(o){
-  if(o.paymentMethod==='LINE Pay' && o.paymentStatus==='paid') return '<span class="pill pay">✅ LINE Pay 已付款</span>';
-  if(o.paymentMethod==='LINE Pay') return '<span class="pill cash">⚠️ LINE Pay</span>';
-  return '<span class="pill cash">🏪 現場付款</span>';
-}
-function fulfillmentLabel(o){
-  return o.method==='外送'
-    ? '<span class="pill delivery">🛵 外送</span>'
-    : '<span class="pill pickup">🏪 自取</span>';
-}
-
+let orders=[];
+let currentTab='active';
+const STATUS_LABEL={new:'🔔 新訂單',accepted:'✅ 已接單',making:'🥤 製作中',done:'✔ 已完成',cancelled:'✕ 已取消'};
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function localDate(v){if(!v)return '-';const d=new Date(v);if(Number.isNaN(d.getTime()))return esc(v);return d.toLocaleString('zh-TW',{hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}
+function isToday(v){const d=new Date(v),n=new Date();return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate()}
+function itemPrice(x){return Number(x?.price||0)+(Array.isArray(x?.tops)?x.tops.reduce((a,t)=>a+Number(t?.p||0),0):0)}
+function itemDetail(x){const a=[];if(x.sweet||x.sugar)a.push(x.sweet||x.sugar);if(x.ice)a.push(x.ice);const tops=(x.tops||x.addons||[]).map(t=>typeof t==='string'?t:t.name).filter(Boolean);if(tops.length)a.push('加料：'+tops.join('、'));return a.join('｜')}
 async function login(){
-  const pin=document.getElementById('pin').value.trim();
-  const r=await fetch('/api/admin/login',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({pin})
-  });
-  const x=await r.json().catch(()=>({}));
-  if(!x.ok) return alert('PIN 錯誤');
-
-  logged=true;
-  localStorage.setItem(SESSION_KEY,'1');
-  document.getElementById('login').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-  document.getElementById('logoutBtn').style.display='';
-  document.getElementById('syncText').textContent='已登入｜即時同步中';
-  enableAudio();
-  load();
+ const pin=document.getElementById('pin').value.trim();document.getElementById('loginErr').textContent='';
+ try{const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});const d=await r.json();if(!d.ok){document.getElementById('loginErr').textContent='PIN 錯誤';return}sessionStorage.setItem('yipin_admin_ok','1');showApp()}catch(e){document.getElementById('loginErr').textContent='無法連線後台'}
 }
-
-async function logout(){
-  try{await fetch('/api/admin/logout',{method:'POST'})}catch(e){}
-  localStorage.removeItem(SESSION_KEY);
-  sessionStorage.removeItem(SESSION_KEY);
-  location.reload();
+function logout(){sessionStorage.removeItem('yipin_admin_ok');location.reload()}
+function showApp(){document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');loadOrders()}
+async function loadOrders(){
+ try{const r=await fetch('/api/admin/orders',{cache:'no-store'});if(!r.ok)throw new Error();orders=await r.json();if(!Array.isArray(orders))orders=[];renderAll();document.getElementById('lastUpdate').textContent='最後更新 '+new Date().toLocaleTimeString('zh-TW',{hour12:false})}catch(e){document.getElementById('lastUpdate').textContent='讀取訂單失敗'}
 }
-
-async function load(){
-  if(!logged)return;
-  try{
-    const r=await fetch('/api/admin/orders',{cache:'no-store'});
-    allOrders=await r.json();
-    render();
-    updateAlarm();
-    document.getElementById('syncText').textContent='已同步｜'+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
-  }catch(e){
-    document.getElementById('syncText').textContent='同步失敗';
-  }
+function setTab(tab){currentTab=tab;document.getElementById('tabActive').classList.toggle('active',tab==='active');document.getElementById('tabHistory').classList.toggle('active',tab==='history');document.getElementById('activePanel').classList.toggle('hidden',tab!=='active');document.getElementById('historyPanel').classList.toggle('hidden',tab!=='history');if(tab==='history')renderHistory()}
+function renderAll(){
+ const active=orders.filter(o=>['new','accepted','making'].includes(o.status));
+ const hist=orders.filter(o=>['done','cancelled'].includes(o.status));
+ document.getElementById('sNew').textContent=active.filter(o=>o.status==='new').length;
+ document.getElementById('sDoing').textContent=active.filter(o=>o.status!=='new').length;
+ document.getElementById('sDoneToday').textContent=orders.filter(o=>o.status==='done'&&isToday(o.updatedAt||o.createdAt)).length;
+ document.getElementById('sTodaySales').textContent='$'+orders.filter(o=>isToday(o.createdAt)&&o.status!=='cancelled').reduce((a,o)=>a+Number(o.total||0),0).toLocaleString('zh-TW');
+ document.getElementById('activeBadge').textContent=active.length;document.getElementById('historyBadge').textContent=hist.length;
+ renderActive();renderHistory();
 }
-
-function switchTab(status,btn){
-  currentTab=status;
-  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-  btn.classList.add('active');
-  render();
-  window.scrollTo({top:0,behavior:'smooth'});
+function card(o,history=false){
+ const items=(o.items||[]).map((x,i)=>`<div class="item"><div><b>${i+1}. ${esc(x.name||x.title||'品項')}</b><small>${esc(itemDetail(x))}</small></div><div>$${itemPrice(x)}</div></div>`).join('');
+ const actions=history?`<div class="actions"><button onclick="changeStatus('${esc(o.id)}','accepted')">恢復為已接單</button></div>`:`<div class="actions">
+ <button class="${o.status==='accepted'?'on':''}" onclick="changeStatus('${esc(o.id)}','accepted')">已接單</button>
+ <button class="${o.status==='making'?'on':''}" onclick="changeStatus('${esc(o.id)}','making')">製作中</button>
+ <button onclick="changeStatus('${esc(o.id)}','done')">完成</button>
+ <button class="danger" onclick="changeStatus('${esc(o.id)}','cancelled')">取消</button></div>`;
+ return `<article class="order ${esc(o.status)}"><div class="top"><div><div class="oid">${esc(o.id)}</div><div class="time">下單 ${localDate(o.createdAt)}${o.updatedAt?'｜更新 '+localDate(o.updatedAt):''}</div></div><span class="status ${esc(o.status)}">${STATUS_LABEL[o.status]||esc(o.status)}</span></div>
+ <div class="customer"><div><b>${esc(o.name||'-')}</b>｜${esc(o.phone||'-')}</div><div>${esc(o.method||'自取')}｜${esc(o.pickup||'-')}</div>${o.address?`<div style="grid-column:1/-1">地址：${esc(o.address)}</div>`:''}</div>
+ <div class="items">${items||'<div class="sub">無品項資料</div>'}</div>
+ <div class="total"><span>合計</span><span>$${Number(o.total||0).toLocaleString('zh-TW')}</span></div>${o.remark?`<div class="remark">備註：${esc(o.remark)}</div>`:''}${actions}</article>`
 }
-
-function render(){
-  const counts={new:0,accepted:0,making:0,done:0};
-  allOrders.forEach(o=>{if(counts[o.status]!==undefined)counts[o.status]++});
-
-  Object.keys(counts).forEach(s=>{
-    const el=document.getElementById('b'+s);
-    if(el)el.textContent=counts[s];
-  });
-  document.getElementById('sumNew').textContent=counts.new;
-  document.getElementById('sumMaking').textContent=counts.accepted+counts.making;
-  document.getElementById('sumToday').textContent=allOrders.filter(o=>isToday(o.createdAt)).length;
-
-  const titleMap={new:'🔔 新訂單',accepted:'👋 已接單',making:'🥤 製作中',done:'✅ 已完成'};
-  document.getElementById('sectionTitle').textContent=titleMap[currentTab];
-
-  let rows=allOrders.filter(o=>o.status===currentTab);
-  if(currentTab==='done') rows=rows.slice(0,30);
-
-  const list=document.getElementById('list');
-  list.innerHTML=rows.length?rows.map(card).join(''):'<div class="empty">目前沒有訂單</div>';
+function renderActive(){const list=orders.filter(o=>['new','accepted','making'].includes(o.status));document.getElementById('activeGrid').innerHTML=list.length?list.map(o=>card(o,false)).join(''):'<div class="empty">目前沒有進行中的訂單</div>'}
+function renderHistory(){
+ const q=(document.getElementById('q')?.value||'').trim().toLowerCase(),range=document.getElementById('range')?.value||'30',st=document.getElementById('hstatus')?.value||'all';
+ let list=orders.filter(o=>['done','cancelled'].includes(o.status));
+ if(st!=='all')list=list.filter(o=>o.status===st);
+ if(range!=='all'){const since=Date.now()-Number(range)*86400000;list=list.filter(o=>new Date(o.updatedAt||o.createdAt).getTime()>=since)}
+ if(q)list=list.filter(o=>[o.id,o.name,o.phone,o.address].some(v=>String(v||'').toLowerCase().includes(q)));
+ list.sort((a,b)=>new Date(b.updatedAt||b.createdAt)-new Date(a.updatedAt||a.createdAt));
+ const c=document.getElementById('historyCount');if(c)c.textContent=`共 ${list.length} 筆`;
+ const g=document.getElementById('historyGrid');if(g)g.innerHTML=list.length?list.map(o=>card(o,true)).join(''):'<div class="empty">這個條件下沒有歷史訂單</div>';
 }
-
-function card(o){
-  const items=(o.items||[]).map(x=>{
-    const tops=(x.tops||[]).length?'｜加料：'+(x.tops||[]).map(t=>escapeHtml(t.name)).join('、'):'';
-    return '<div class="item"><b>'+escapeHtml(x.name)+'</b><div class="sub">'+escapeHtml(x.sweet||'')+'｜'+escapeHtml(x.ice||'')+tops+'</div></div>';
-  }).join('');
-
-  let actionHtml='';
-  if(o.status==='new'){
-    actionHtml='<div class="actions"><button class="accept" onclick="moveOrder(\''+o.id+'\',\'accepted\')">✅ 接單</button><button class="cancel" onclick="moveOrder(\''+o.id+'\',\'cancelled\')">取消</button></div>';
-  }else if(o.status==='accepted'){
-    actionHtml='<div class="actions one"><button class="making" onclick="moveOrder(\''+o.id+'\',\'making\')">🥤 開始製作</button></div>';
-  }else if(o.status==='making'){
-    actionHtml='<div class="actions one"><button class="done" onclick="moveOrder(\''+o.id+'\',\'done\')">✅ 完成</button></div>';
-  }
-
-  const phone=escapeHtml(o.phone||'');
-  const delivery=o.method==='外送';
-  const address=escapeHtml(o.address||'');
-
-  return '<div class="card '+escapeHtml(o.status)+'">'+
-    '<div class="headrow">'+
-      '<div><div class="order-id">'+escapeHtml(o.id)+'</div><div class="small">'+fmtDateTime(o.createdAt)+'</div></div>'+
-      '<div class="timebig">'+fmtTime(o.pickup)+'</div>'+
-    '</div>'+
-    '<div class="meta">'+fulfillmentLabel(o)+paymentLabel(o)+'</div>'+
-    '<div class="customer"><b>'+escapeHtml(o.name)+'</b>｜<a href="tel:'+phone+'">📞 '+phone+'</a></div>'+
-    (delivery?'<div class="addressbox"><b>地址：</b>'+address+'<div class="actions one"><button class="copy" onclick="copyAddress(\''+encodeURIComponent(o.address||'')+'\')">📋 複製地址</button></div></div>':'')+
-    (o.remark?'<div class="addressbox"><b>備註：</b>'+escapeHtml(o.remark)+'</div>':'')+
-    '<div class="items">'+items+'</div>'+
-    '<div class="footerrow"><div><div class="small">'+((o.items||[]).length)+' 杯</div></div><div class="total">$'+Number(o.total||0)+'</div></div>'+
-    actionHtml+
-  '</div>';
+async function changeStatus(id,status){
+ if(status==='cancelled'&&!confirm('確定要取消這張訂單？'))return;
+ try{const r=await fetch('/api/admin/orders/'+encodeURIComponent(id)+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'更新失敗')}const updated=await r.json();const i=orders.findIndex(o=>o.id===id);if(i>=0)orders[i]=updated;renderAll();if(['done','cancelled'].includes(status)){setTab('history')} }catch(e){alert(e.message||'更新失敗')}
 }
-
-async function moveOrder(id,status){
-  try{
-    const r=await fetch('/api/admin/orders/'+encodeURIComponent(id)+'/status',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({status})
-    });
-    if(!r.ok){
-      const e=await r.json().catch(()=>({}));
-      throw new Error(e.error||'更新失敗');
-    }
-    await load();
-    updateAlarm();
-    if(status==='accepted') switchTab('accepted',document.querySelector('.tab[data-status="accepted"]'));
-    if(status==='making') switchTab('making',document.querySelector('.tab[data-status="making"]'));
-    if(status==='done') switchTab('done',document.querySelector('.tab[data-status="done"]'));
-  }catch(e){
-    alert(e.message||'更新失敗');
-  }
-}
-
-async function copyAddress(encoded){
-  const text=decodeURIComponent(encoded);
-  try{
-    await navigator.clipboard.writeText(text);
-    alert('地址已複製');
-  }catch(e){
-    prompt('請複製地址',text);
-  }
-}
-
-
-function urlBase64ToUint8Array(base64String){const padding='='.repeat((4-base64String.length%4)%4);const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');const raw=atob(base64);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)))}
-async function enablePush(){const btn=document.getElementById('pushBtn');try{if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window))throw new Error('這台裝置不支援背景推播');const isiOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;if(isiOS&&!standalone)throw new Error('iPhone 請先用 Safari「分享 → 加入主畫面」，再從主畫面開啟一品接單');let p=Notification.permission;if(p!=='granted')p=await Notification.requestPermission();if(p!=='granted')throw new Error('通知權限尚未允許');const reg=await navigator.serviceWorker.ready;const k=await fetch('/api/push/public-key',{cache:'no-store'}).then(r=>r.json());if(!k.ok||!k.publicKey)throw new Error('伺服器尚未設定背景推播金鑰');let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(k.publicKey)});const r=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:sub})});const x=await r.json().catch(()=>({}));if(!r.ok)throw new Error(x.error||'背景推播註冊失敗');localStorage.setItem('yipin_push_enabled','1');if(btn)btn.textContent='✅背景通知';await fetch('/api/push/test',{method:'POST'});alert('背景通知已啟用')}catch(e){alert(e.message||'無法啟用背景通知')}}
-async function restorePersistentLogin(){try{const r=await fetch('/api/admin/session',{cache:'no-store'});const x=await r.json().catch(()=>({}));if(!x.ok)return false;logged=true;localStorage.setItem(SESSION_KEY,'1');document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');document.getElementById('logoutBtn').style.display='';document.getElementById('syncText').textContent='已登入｜即時同步中';if(localStorage.getItem('yipin_push_enabled')==='1'){const b=document.getElementById('pushBtn');if(b)b.textContent='✅背景通知'}await load();return true}catch{return false}}
-
-
-function enableAudio(){
-  try{
-    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-    if(audioCtx.state==='suspended') audioCtx.resume();
-  }catch(e){}
-}
-
-
-async function unlockOrderSound(){
-  try{
-    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-    await audioCtx.resume();
-    const now=audioCtx.currentTime;
-    const p=[[880,0,.18],[1175,.20,.18],[880,.40,.18],[1175,.60,.26],[1320,.95,.16],[1320,1.14,.16],[1050,1.33,.28]];
-    p.forEach(([f,s,d])=>{
-      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-      o.type='square'; o.frequency.setValueAtTime(f,now+s);
-      g.gain.setValueAtTime(.42,now+s); g.gain.exponentialRampToValueAtTime(.001,now+s+d);
-      o.connect(g); g.connect(audioCtx.destination); o.start(now+s); o.stop(now+s+d);
-    });
-    localStorage.setItem('yipinSoundEnabled','1');
-    const b=document.getElementById('soundUnlock');
-    if(b){b.classList.add('ready');b.textContent='✅ 接單鈴聲已開啟｜點我測試聲音'}
-    if(alarmActive) setTimeout(playOrderAlarm,1700);
-  }catch(e){
-    alert('無法開啟鈴聲，請把 iPhone 媒體音量調高後再試。');
-  }
-}
-function loudTone(freq,start,duration,volume=.32){
-  if(!audioCtx || audioCtx.state!=='running') return;
-  const osc=audioCtx.createOscillator();
-  const gain=audioCtx.createGain();
-  osc.type='square';
-  osc.connect(gain); gain.connect(audioCtx.destination);
-  const t=audioCtx.currentTime+start;
-  osc.frequency.setValueAtTime(freq,t);
-  gain.gain.setValueAtTime(volume,t);
-  gain.gain.exponentialRampToValueAtTime(.001,t+duration);
-  osc.start(t); osc.stop(t+duration);
-}
-
-function playOrderAlarm(){
-  if(!alarmActive) return;
-  enableAudio();
-  if(!audioCtx || audioCtx.state!=='running') return;
-
-  // 接單機風格：高低交錯八拍，明顯比原本 0.08 音量單音更醒目
-  const notes=[1040,820,1040,820,1180,900,1180,900];
-  notes.forEach((f,i)=>loudTone(f,i*.22,.18,.34));
-
-  if(navigator.vibrate){
-    try{navigator.vibrate([250,80,250,80,250,80,500])}catch(e){}
-  }
-}
-
-function updateAlarm(){
-  if(!logged) return stopAlarm();
-  const pending=allOrders.some(o=>o.status==='new');
-  if(pending) startAlarm();
-  else stopAlarm();
-}
-
-function startAlarm(){
-  if(alarmActive) return;
-  alarmActive=true;
-  const banner=document.getElementById('orderAlarm');
-  if(banner) banner.classList.add('show');
-  playOrderAlarm();
-  // 一輪約 1.7 秒，停一下後重播；直到所有新單都接掉
-  alarmTimer=setInterval(playOrderAlarm,3000);
-}
-
-function stopAlarm(){
-  alarmActive=false;
-  if(alarmTimer){clearInterval(alarmTimer);alarmTimer=null}
-  const banner=document.getElementById('orderAlarm');
-  if(banner) banner.classList.remove('show');
-  if(navigator.vibrate){try{navigator.vibrate(0)}catch(e){}}
-}
-
-// iOS/手機瀏覽器需要使用者手勢解鎖聲音。
-// 第一次點擊/觸控後即解鎖；若已有未接單，立刻開始警報。
-['click','touchstart','pointerdown'].forEach(evt=>{
-  document.addEventListener(evt,()=>{
-    enableAudio();
-    if(logged && allOrders.some(o=>o.status==='new')) startAlarm();
-  },{passive:true});
-});
-
-if(typeof io==='function'){
-  const socket=io();
-  socket.on('new-order',o=>{
-    if(logged){
-      currentTab='new';
-      document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.status==='new'));
-      load().then(updateAlarm);
-    }
-  });
-  socket.on('order-updated',()=>{if(logged)load()});
-}
-
-setInterval(load,5000);
-
-document.addEventListener('DOMContentLoaded',async()=>{
-  const ok=await restorePersistentLogin();
-  if(!ok){localStorage.removeItem(SESSION_KEY);document.getElementById('syncText').textContent='請登入';}
-});
-
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js?v=10').catch(()=>{}));
-}
+if(sessionStorage.getItem('yipin_admin_ok')==='1')showApp();
+else document.getElementById('pin').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
+try{const socket=io();socket.on('new-order',o=>{orders=[o,...orders.filter(x=>x.id!==o.id)];renderAll()});socket.on('order-updated',o=>{const i=orders.findIndex(x=>x.id===o.id);if(i>=0)orders[i]=o;else orders.unshift(o);renderAll()})}catch(e){}
+setInterval(()=>{if(!document.getElementById('app').classList.contains('hidden'))loadOrders()},30000);
 </script>
 </body>
 </html>
