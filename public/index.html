@@ -54,7 +54,7 @@ main{max-width:900px;margin:18px auto 0;padding:0 18px 120px;background:rgba(255
 <script src="/socket.io/socket.io.js"></script><script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
 const LIFF_ID = "2011256472-3TidlkYv";
-// 此版本刻意不使用 liff.sendMessages()，以支援 LIFF 瀏覽器最小化。
+// 訂單成立後使用 liff.sendMessages()，把完整訂單以客人身分回傳到目前的官方帳號聊天室。
 let liffReady = false;
 let lineIdToken = "";
 let lastLineOrder = null;
@@ -122,11 +122,44 @@ function buildCompactOrderText(order,payload){
 
 async function sendOrderToCurrentLineChat(order,payload){
   const status=document.getElementById("lineSendStatus");
-  if(status) status.textContent="✅ 訂單已成立，官方帳號會傳送完整訂單明細。";
-  return true;
+  if(status) status.textContent="正在把完整訂單回傳到一品現泡茶官方帳號聊天室…";
+
+  try{
+    if(!liffReady){
+      await initLiff();
+    }
+
+    if(!window.liff || !liffReady){
+      throw new Error("LIFF 尚未初始化，請從 LINE 官方帳號的點餐入口重新開啟網站");
+    }
+
+    if(!liff.isInClient()){
+      throw new Error("請從 LINE App 內的一品現泡茶官方帳號開啟點餐頁，才能自動回傳訂單訊息");
+    }
+
+    if(typeof liff.sendMessages !== "function"){
+      throw new Error("目前 LIFF 尚未開啟 chat_message.write 權限");
+    }
+
+    const text=buildCompactOrderText(order,payload);
+    await liff.sendMessages([{type:"text",text}]);
+
+    if(status) status.textContent="✅ 完整訂單已回傳到一品現泡茶官方帳號聊天室，店家已可在官方訊息中看到。";
+    return true;
+  }catch(err){
+    console.error("LINE order sendMessages failed",err);
+    const msg=err?.message || err?.code || "LINE 訂單回傳失敗";
+    if(status) status.textContent="⚠️ 訂單已送到店家後台，但 LINE 官方訊息回傳失敗："+msg;
+    return false;
+  }
 }
 
-async function retryLineSend(){ return true; }
+async function retryLineSend(){
+  if(!lastLineOrder) return alert("找不到可重新回傳的訂單");
+  const ok=await sendOrderToCurrentLineChat(lastLineOrder.order,lastLineOrder.payload);
+  if(!ok) alert("LINE 訊息尚未回傳成功，請確認是從 LINE 官方帳號內開啟點餐頁，且 LIFF 已啟用 chat_message.write 權限。");
+  return ok;
+}
 
 function saveOrderDraft(){
   try{
