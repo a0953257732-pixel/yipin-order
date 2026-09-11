@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>一品現泡茶｜LIFF 完整診斷</title>
+<style>
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft JhengHei",sans-serif;
+  background:#f6f0e3;color:#123f2d;margin:0;padding:40px 20px
+}
+.box{
+  max-width:620px;margin:auto;background:#fffdf8;border:1px solid #ddd3c1;
+  border-radius:14px;padding:28px;box-shadow:0 8px 28px rgba(0,0,0,.08)
+}
+h1{font-size:24px;margin-top:0}
+.status{
+  padding:16px;border-radius:10px;background:#eef3ef;
+  font-weight:700;line-height:1.7;margin-bottom:16px
+}
+pre{
+  white-space:pre-wrap;word-break:break-all;font-size:13px;line-height:1.6;
+  background:#f5f5f5;padding:14px;border-radius:8px;margin-top:12px
+}
+.small{font-size:12px;color:#6b746f;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>一品現泡茶｜LIFF 完整診斷</h1>
+  <div id="status" class="status">正在初始化 LIFF…</div>
+  <pre id="diag">準備讀取診斷資訊…</pre>
+  <div class="small">此頁只用來檢查 LIFF 初始化，不會送出訂單。</div>
+</div>
+
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+const LIFF_ID = "2011256472-Tj0ebhYR";
+
+function safeValue(fn, fallback="無法取得"){
+  try{
+    const v = fn();
+    return (v === undefined || v === null || v === "") ? fallback : String(v);
+  }catch(e){
+    return fallback + " (" + (e && e.message ? e.message : String(e)) + ")";
+  }
+}
+
+function stringifyCause(cause){
+  if(cause === undefined || cause === null) return "無";
+  if(typeof cause === "string") return cause;
+  try{
+    return JSON.stringify(cause, Object.getOwnPropertyNames(cause), 2);
+  }catch(e){
+    try{return String(cause);}catch(_){return "無法轉換";}
+  }
+}
+
+async function start(){
+  const status = document.getElementById("status");
+  const diag = document.getElementById("diag");
+
+  const baseInfo = () => [
+    "=== 基本資訊 ===",
+    "目前網址: " + location.href,
+    "LIFF ID: " + LIFF_ID,
+    "LIFF SDK 已載入: " + (!!window.liff),
+    "是否在 LINE Client: " + (window.liff ? safeValue(() => liff.isInClient()) : "無法判斷"),
+    "LINE 版本: " + (window.liff ? safeValue(() => liff.getLineVersion(), "unknown") : "無法判斷"),
+    "OS: " + (window.liff ? safeValue(() => liff.getOS(), "unknown") : "無法判斷"),
+    ""
+  ];
+
+  try{
+    if(!window.liff){
+      throw new Error("LIFF SDK 未載入");
+    }
+
+    await liff.init({ liffId: LIFF_ID });
+
+    status.textContent = "✅ LIFF 初始化成功";
+
+    const lines = [
+      ...baseInfo(),
+      "=== 初始化結果 ===",
+      "code: SUCCESS",
+      "message: LIFF 初始化成功",
+      "cause: 無",
+      "isLoggedIn: " + safeValue(() => liff.isLoggedIn()),
+      "context.type: " + safeValue(() => {
+        const ctx = liff.getContext();
+        return ctx && ctx.type;
+      })
+    ];
+
+    diag.textContent = lines.join("\n");
+
+  }catch(e){
+    status.textContent = "❌ LIFF 初始化失敗";
+
+    const code = e && e.code ? e.code : "無";
+    const message = e && e.message ? e.message : String(e);
+    const cause = e && ("cause" in e) ? stringifyCause(e.cause) : "無";
+
+    const lines = [
+      ...baseInfo(),
+      "=== 錯誤資訊 ===",
+      "code: " + code,
+      "message: " + message,
+      "cause: " + cause,
+      "",
+      "=== Error 完整內容 ===",
+      (() => {
+        try{
+          return JSON.stringify(e, Object.getOwnPropertyNames(e), 2);
+        }catch(_){
+          return String(e);
+        }
+      })()
+    ];
+
+    diag.textContent = lines.join("\n");
+  }
+}
+
+start();
+</script>
+</body>
+</html>
