@@ -54,9 +54,10 @@ main{max-width:900px;margin:18px auto 0;padding:0 18px 120px;background:rgba(255
 <script src="/socket.io/socket.io.js"></script><script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
 const LIFF_ID = "2011256472-3TidlkYv";
-// 訂單成立後使用 liff.sendMessages()，把完整訂單以客人身分回傳到目前的官方帳號聊天室。
+// 訂單成立後由後端 Messaging API 主動通知客人，不要求客人回傳訊息。
 let liffReady = false;
 let lineIdToken = "";
+let lineAccessToken = "";
 let lastLineOrder = null;
 
 function safeText(v){
@@ -72,9 +73,14 @@ function renderLiffDiag(extra=""){}
 async function initLiff(){
   try{
     if(!window.liff) throw new Error("LIFF_SDK_NOT_LOADED");
-    await liff.init({ liffId: LIFF_ID });
+    await liff.init({ liffId: LIFF_ID, withLoginOnExternalBrowser:true });
+    if(!liff.isLoggedIn()){
+      liff.login({redirectUri:location.href});
+      return false;
+    }
     liffReady = true;
     lineIdToken = (typeof liff.getIDToken === "function" ? (liff.getIDToken() || "") : "");
+    lineAccessToken = (typeof liff.getAccessToken === "function" ? (liff.getAccessToken() || "") : "");
     renderLiffDiag();
     return true;
   }catch(err){
@@ -471,6 +477,7 @@ async function submitOrder(){
   const payload={
     paymentMethod,
     lineIdToken,
+    lineAccessToken,
     name:document.getElementById('name').value.trim(),
     phone:document.getElementById('phone').value.trim(),
     pickup:document.getElementById('time').value,
@@ -543,7 +550,9 @@ async function submitOrder(){
     renderStatus(o.status||'new');
     closeM('checkoutModal');
     document.getElementById('successModal').classList.add('show');
-    await sendOrderToCurrentLineChat(o,lastLineOrder.payload);
+    document.getElementById('lineSendStatus').textContent=o.lineCustomerNotified
+      ? '✅ 店家已收到訂單，官方帳號也已自動通知您。'
+      : '⚠️ 訂單已送到店家後台，但尚未取得您的 LINE 身分；請確認由官方帳號的 LIFF 點餐入口開啟。';
     cart=[];
     update();
     clearOrderDraft();
@@ -593,7 +602,6 @@ async function handleLinePayReturn(){
       document.getElementById('successModal').classList.add('show');
       document.getElementById('lineSendStatus').textContent='✅ LINE Pay 付款成功，訂單已送達店家。';
 
-      await sendOrderToCurrentLineChat(o,payload);
       sessionStorage.removeItem('yipinLinePayOrderId');
       clearOrderDraft();
       history.replaceState({},'',location.pathname);
