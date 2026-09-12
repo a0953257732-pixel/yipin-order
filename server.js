@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const webpush = require("web-push");
+const { Pool } = require("pg");
 
 const app = express();
 const server = http.createServer(app);
@@ -35,6 +36,11 @@ const LINEPAY_API_BASE = "https://api-pay.line.me";
 const BASE_URL = String(process.env.BASE_URL || "https://yipin-order.onrender.com").replace(/\/$/,"");
 const LINEPAY_PENDING_DB = path.join(DATA_DIR, "linepay-pending.json");
 const LINE_SEND_TOKEN_DB = path.join(DATA_DIR, "line-send-tokens.json");
+const DATABASE_URL = process.env.DATABASE_URL || "";
+const dbPool = DATABASE_URL ? new Pool({
+  connectionString:DATABASE_URL,
+  ssl:process.env.NODE_ENV === "production" ? {rejectUnauthorized:false} : undefined
+}) : null;
 
 fs.mkdirSync(DATA_DIR,{recursive:true});
 if(!fs.existsSync(DB)) fs.writeFileSync(DB,"[]");
@@ -48,17 +54,49 @@ app.use((req,res,next)=>{req.cookies={};String(req.headers.cookie||"").split(";"
 app.use(express.static(path.join(__dirname,"public")));
 
 function readJson(file,fallback){try{return JSON.parse(fs.readFileSync(file,"utf8"))}catch(e){return fallback}}
-function writeJson(file,data){fs.writeFileSync(file,JSON.stringify(data,null,2),"utf8")}
+const STORE_FILES = [DB,SHARED_DB,PUSH_DB,LINEPAY_PENDING_DB,LINE_SEND_TOKEN_DB];
+function storeKey(file){return path.basename(file,".json")}
+function writeJson(file,data){
+  fs.writeFileSync(file,JSON.stringify(data,null,2),"utf8");
+  if(!dbPool) return Promise.resolve();
+  return dbPool.query(
+    `INSERT INTO yipin_store (store_key, payload, updated_at)
+     VALUES ($1,$2::jsonb,NOW())
+     ON CONFLICT (store_key) DO UPDATE SET payload=EXCLUDED.payload, updated_at=NOW()`,
+    [storeKey(file),JSON.stringify(data)]
+  ).then(()=>undefined).catch(e=>{console.error("[DB] persist failed",storeKey(file),e.message);throw e});
+}
 function readOrders(){return readJson(DB,[])}
-function writeOrders(x){writeJson(DB,x)}
+function writeOrders(x){return writeJson(DB,x)}
 function readSharedCarts(){return readJson(SHARED_DB,{})}
-function writeSharedCarts(x){writeJson(SHARED_DB,x)}
+function writeSharedCarts(x){return writeJson(SHARED_DB,x)}
 function readPushSubs(){return readJson(PUSH_DB,[])}
-function writePushSubs(x){writeJson(PUSH_DB,x)}
+function writePushSubs(x){return writeJson(PUSH_DB,x)}
 function readLinePayPending(){return readJson(LINEPAY_PENDING_DB,{})}
-function writeLinePayPending(x){writeJson(LINEPAY_PENDING_DB,x)}
+function writeLinePayPending(x){return writeJson(LINEPAY_PENDING_DB,x)}
 function readLineSendTokens(){return readJson(LINE_SEND_TOKEN_DB,{})}
-function writeLineSendTokens(x){writeJson(LINE_SEND_TOKEN_DB,x)}
+function writeLineSendTokens(x){return writeJson(LINE_SEND_TOKEN_DB,x)}
+async function initializePersistentStore(){
+  if(!dbPool){
+    console.warn("[DB] DATABASE_URL 未設定，目前使用本機 JSON；Render 重啟後資料可能消失");
+    return;
+  }
+  await dbPool.query(`CREATE TABLE IF NOT EXISTS yipin_store (
+    store_key TEXT PRIMARY KEY,
+    payload JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  for(const file of STORE_FILES){
+    const key=storeKey(file);
+    const result=await dbPool.query("SELECT payload FROM yipin_store WHERE store_key=$1",[key]);
+    if(result.rows.length){
+      fs.writeFileSync(file,JSON.stringify(result.rows[0].payload,null,2),"utf8");
+    }else{
+      await writeJson(file,readJson(file,file===DB||file===PUSH_DB?[]:{}));
+    }
+  }
+  console.log("[DB] PostgreSQL 永久儲存已啟用");
+}
 function id(){return "YP"+crypto.randomBytes(4).toString("hex").toUpperCase()}
 function sharedCartId(){return crypto.randomBytes(8).toString("hex")}
 
@@ -79,7 +117,7 @@ function setAdminCookie(res,token){res.setHeader("Set-Cookie",`${ADMIN_COOKIE}=$
 function clearAdminCookie(res){res.setHeader("Set-Cookie",`${ADMIN_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`)}
 function adminLoggedIn(req){return verifyAdminSession(req.cookies?.[ADMIN_COOKIE])}
 function pushPayload(order,kind="new"){const unaccepted=readOrders().filter(o=>o.status==="new");if(kind==="reminder")return{title:`🔔 ${unaccepted.length} 筆訂單尚未接單`,body:`請開啟後台處理未接訂單。`,tag:"yipin-unaccepted",url:"/admin.html?from=push"};return{title:"🔔 一品現泡茶｜新訂單",body:`${order.id}｜${order.method==="外送"?"外送":"自取"}｜$${order.total}｜${order.name}`,tag:`yipin-order-${order.id}`,url:"/admin.html?from=push"}}
-async function sendWebPush(payload){if(!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)return{sent:0,configured:false};const subs=readPushSubs();const keep=[];let sent=0;for(const sub of subs){try{await webpush.sendNotification(sub,JSON.stringify(payload),{TTL:120,urgency:"high"});keep.push(sub);sent++}catch(e){const code=Number(e?.statusCode||0);if(code!==404&&code!==410)keep.push(sub);console.error("[PUSH] failed",code,e?.message)}}if(keep.length!==subs.length)writePushSubs(keep);return{sent,configured:true}}
+async function sendWebPush(payload){if(!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)return{sent:0,configured:false};const subs=readPushSubs();const keep=[];let sent=0;for(const sub of subs){try{await webpush.sendNotification(sub,JSON.stringify(payload),{TTL:120,urgency:"high"});keep.push(sub);sent++}catch(e){const code=Number(e?.statusCode||0);if(code!==404&&code!==410)keep.push(sub);console.error("[PUSH] failed",code,e?.message)}}if(keep.length!==subs.length)await writePushSubs(keep);return{sent,configured:true}}
 
 async function verifyLineIdToken(idToken){
   if(!idToken) return null;
@@ -326,7 +364,7 @@ async function notifyCustomerForStatus(order,status){
   }
 }
 
-function createPaidOrderFromPending(orderId,pending,transactionId){
+async function createPaidOrderFromPending(orderId,pending,transactionId){
   const existing=readOrders().find(x=>x.id===orderId);
   if(existing) return existing;
 
@@ -351,7 +389,7 @@ function createPaidOrderFromPending(orderId,pending,transactionId){
 
   const orders=readOrders();
   orders.unshift(order);
-  writeOrders(orders);
+  await writeOrders(orders);
   io.emit("new-order",order);
   sendWebPush(pushPayload(order,"new")).catch(e=>console.error("[PUSH] paid order",e?.message));
   return order;
@@ -451,7 +489,7 @@ app.delete("/api/line-send-token/:token",(req,res)=>{
 app.get("/api/admin/session",(req,res)=>res.json({ok:adminLoggedIn(req)}));
 app.post("/api/admin/logout",(req,res)=>{clearAdminCookie(res);res.json({ok:true})});
 app.get("/api/push/public-key",(req,res)=>res.json({ok:Boolean(VAPID_PUBLIC_KEY),publicKey:VAPID_PUBLIC_KEY}));
-app.post("/api/push/subscribe",(req,res)=>{if(!adminLoggedIn(req))return res.status(401).json({error:"請先登入後台"});const sub=req.body?.subscription;if(!sub?.endpoint)return res.status(400).json({error:"缺少推播訂閱資料"});const list=readPushSubs().filter(x=>x?.endpoint!==sub.endpoint);list.push(sub);writePushSubs(list.slice(-20));res.json({ok:true,count:list.length})});
+app.post("/api/push/subscribe",async(req,res)=>{if(!adminLoggedIn(req))return res.status(401).json({error:"請先登入後台"});const sub=req.body?.subscription;if(!sub?.endpoint)return res.status(400).json({error:"缺少推播訂閱資料"});const list=readPushSubs().filter(x=>x?.endpoint!==sub.endpoint);list.push(sub);await writePushSubs(list.slice(-20));res.json({ok:true,count:list.length})});
 app.post("/api/push/test",async(req,res)=>{if(!adminLoggedIn(req))return res.status(401).json({error:"請先登入後台"});const result=await sendWebPush({title:"✅ 一品接單背景通知測試",body:"背景推播已啟用。",tag:"yipin-test",url:"/admin.html"});res.json({ok:true,...result})});
 
 app.get("/api/health",(req,res)=>res.json({ok:true,service:"yipin-order",lineConfigured:Boolean(LINE_CHANNEL_ACCESS_TOKEN&&LINE_CHANNEL_SECRET)}));
@@ -547,7 +585,7 @@ app.post("/api/linepay/request",async(req,res)=>{
       lineUserId,
       createdAt:Date.now()
     };
-    writeLinePayPending(pending);
+    await writeLinePayPending(pending);
 
     console.log("[LINEPAY] request success",{orderId,transactionId});
 
@@ -611,9 +649,9 @@ app.get("/api/linepay/confirm",async(req,res)=>{
       );
     }
 
-    const order=createPaidOrderFromPending(orderId,pending,transactionId);
+    const order=await createPaidOrderFromPending(orderId,pending,transactionId);
     delete pendingStore[orderId];
-    writeLinePayPending(pendingStore);
+    await writeLinePayPending(pendingStore);
 
     console.log("[LINEPAY] confirm success",{
       orderId,
@@ -665,27 +703,27 @@ app.get("/api/orders/:id/receipt",(req,res)=>{
   res.json(o);
 });
 
-app.post("/api/shared-carts",(req,res)=>{
+app.post("/api/shared-carts",async(req,res)=>{
   const cart=sanitizeSharedCart(req.body?.cart); if(!cart.length)return res.status(400).json({error:"購物車是空的"});
   const store=readSharedCarts(),shareId=sharedCartId(),now=Date.now();
-  store[shareId]={cart,createdAt:now,updatedAt:now,version:1};writeSharedCarts(store);
+  store[shareId]={cart,createdAt:now,updatedAt:now,version:1};await writeSharedCarts(store);
   res.json({ok:true,shareId,cart,version:1,url:`${req.protocol}://${req.get("host")}/?share=${encodeURIComponent(shareId)}`});
 });
 app.get("/api/shared-carts/:id",(req,res)=>{
   const x=readSharedCarts()[req.params.id]; if(!x)return res.status(404).json({error:"找不到團購單，可能已失效"});
   res.json({shareId:req.params.id,cart:x.cart||[],version:Number(x.version||1),createdAt:x.createdAt,updatedAt:x.updatedAt});
 });
-app.post("/api/shared-carts/:id/items",(req,res)=>{
+app.post("/api/shared-carts/:id/items",async(req,res)=>{
   const store=readSharedCarts(),x=store[req.params.id];if(!x)return res.status(404).json({error:"找不到團購單"});
   const item=sanitizeSharedItem(req.body?.item);if(!item)return res.status(400).json({error:"品項資料錯誤"});
-  x.cart=x.cart||[];x.cart.push(item);x.version=Number(x.version||0)+1;x.updatedAt=Date.now();writeSharedCarts(store);
+  x.cart=x.cart||[];x.cart.push(item);x.version=Number(x.version||0)+1;x.updatedAt=Date.now();await writeSharedCarts(store);
   const payload={shareId:req.params.id,cart:x.cart,version:x.version,updatedAt:x.updatedAt};io.to(`shared-cart:${req.params.id}`).emit("shared-cart-updated",payload);res.json({ok:true,...payload,item});
 });
-app.delete("/api/shared-carts/:id/items/:itemId",(req,res)=>{
+app.delete("/api/shared-carts/:id/items/:itemId",async(req,res)=>{
   const store=readSharedCarts(),x=store[req.params.id];if(!x)return res.status(404).json({error:"找不到團購單"});
   const before=(x.cart||[]).length;x.cart=(x.cart||[]).filter(v=>String(v.sharedItemId||"")!==req.params.itemId);
   if(x.cart.length===before)return res.status(404).json({error:"找不到這個品項"});
-  x.version=Number(x.version||0)+1;x.updatedAt=Date.now();writeSharedCarts(store);
+  x.version=Number(x.version||0)+1;x.updatedAt=Date.now();await writeSharedCarts(store);
   const payload={shareId:req.params.id,cart:x.cart,version:x.version,updatedAt:x.updatedAt};io.to(`shared-cart:${req.params.id}`).emit("shared-cart-updated",payload);res.json({ok:true,...payload});
 });
 
@@ -727,7 +765,7 @@ app.post("/api/orders",async(req,res)=>{
 
   const orders=readOrders();
   orders.unshift(order);
-  writeOrders(orders);
+  await writeOrders(orders);
   io.emit("new-order",order);
   sendWebPush(pushPayload(order,"new")).catch(e=>console.error("[PUSH] new order",e?.message));
   res.json(order);
@@ -747,7 +785,7 @@ app.post("/api/admin/orders/:id/status",async(req,res)=>{
 
   o.status=status;
   o.updatedAt=new Date().toISOString();
-  writeOrders(orders);
+  await writeOrders(orders);
   io.emit("order-updated",o);
 
   const notified=await notifyCustomerForStatus(o,status);
@@ -761,4 +799,9 @@ io.on("connection",socket=>{
 });
 let lastPushReminderAt=0;
 setInterval(async()=>{try{if(!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)return;const unaccepted=readOrders().filter(o=>o.status==="new");if(!unaccepted.length)return;if(Date.now()-lastPushReminderAt<55000)return;lastPushReminderAt=Date.now();await sendWebPush(pushPayload(null,"reminder"))}catch(e){console.error("[PUSH] reminder failed",e?.message)}},15000);
-server.listen(PORT,()=>console.log(`一品現泡茶 order system listening on :${PORT}`));
+initializePersistentStore()
+  .then(()=>server.listen(PORT,()=>console.log(`一品現泡茶 order system listening on :${PORT}`)))
+  .catch(e=>{
+    console.error("[DB] 啟動失敗，為避免訂單遺失，伺服器不接受新訂單",e);
+    process.exit(1);
+  });
