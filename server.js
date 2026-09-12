@@ -141,6 +141,29 @@ async function verifyLineIdToken(idToken){
   return data?.sub ? String(data.sub) : null;
 }
 
+async function verifyLineAccessToken(accessToken){
+  if(!accessToken) return null;
+  const r=await fetch("https://api.line.me/v2/profile",{
+    headers:{Authorization:`Bearer ${String(accessToken)}`}
+  });
+  if(!r.ok){
+    console.error("LINE access token profile failed:",r.status,await r.text());
+    return null;
+  }
+  const data=await r.json();
+  return data?.userId ? String(data.userId) : null;
+}
+
+async function resolveLineUserId(payload){
+  try{
+    const byIdToken=await verifyLineIdToken(payload?.lineIdToken||"");
+    if(byIdToken) return byIdToken;
+  }catch(e){console.error("[LINE] ID token verify error",e?.message)}
+  try{
+    return await verifyLineAccessToken(payload?.lineAccessToken||"")||"";
+  }catch(e){console.error("[LINE] access token verify error",e?.message);return ""}
+}
+
 function verifyLineSignature(req){
   if(!LINE_CHANNEL_SECRET) return false;
   const signature=req.get("x-line-signature")||"";
@@ -163,6 +186,30 @@ function formatOrderForLine(o){
     return `${i+1}. ${x.name||x.title||"品項"}${sweet?`｜${sweet}`:""}${ice?`｜${ice}`:""}${tops.length?`｜加料：${tops.join("、")}`:""}${price?`｜$${price}`:""}`;
   });
   return ["🔔 一品現泡茶｜新訂單",`訂單編號：${o.id}`,o.method==="外送"?`🛵 外送\n地址：${o.address||"-"}`:"🏪 門市自取",`姓名：${o.name}`,`電話：${o.phone}`,`時間：${o.pickup}`,"",...items,"",`💰 總金額：$${o.total}`,o.remark?`備註：${o.remark}`:""].filter(Boolean).join("\n");
+}
+
+function orderReceivedMessage(o){
+  return [
+    "✅ 一品現泡茶｜訂單已收到",
+    `訂單編號：${o.id}`,
+    o.method==="外送"?"🛵 外送":"🏪 門市自取",
+    `姓名：${o.name}`,
+    `時間：${o.pickup}`,
+    `金額：$${o.total}`,
+    "",
+    "店家已收到您的訂單，接單與製作進度會由官方帳號通知您。"
+  ].join("\n");
+}
+
+async function notifyOrderReceived(order){
+  if(!order?.lineUserId||!LINE_CHANNEL_ACCESS_TOKEN) return false;
+  try{
+    await pushLineMessage(order.lineUserId,orderReceivedMessage(order));
+    return true;
+  }catch(e){
+    console.error("[ORDER] received push failed",{orderId:order.id,message:e?.message});
+    return false;
+  }
 }
 
 
@@ -492,7 +539,7 @@ app.get("/api/push/public-key",(req,res)=>res.json({ok:Boolean(VAPID_PUBLIC_KEY)
 app.post("/api/push/subscribe",async(req,res)=>{if(!adminLoggedIn(req))return res.status(401).json({error:"請先登入後台"});const sub=req.body?.subscription;if(!sub?.endpoint)return res.status(400).json({error:"缺少推播訂閱資料"});const list=readPushSubs().filter(x=>x?.endpoint!==sub.endpoint);list.push(sub);await writePushSubs(list.slice(-20));res.json({ok:true,count:list.length})});
 app.post("/api/push/test",async(req,res)=>{if(!adminLoggedIn(req))return res.status(401).json({error:"請先登入後台"});const result=await sendWebPush({title:"✅ 一品接單背景通知測試",body:"背景推播已啟用。",tag:"yipin-test",url:"/admin.html"});res.json({ok:true,...result})});
 
-app.get("/api/health",(req,res)=>res.json({ok:true,service:"yipin-order",lineConfigured:Boolean(LINE_CHANNEL_ACCESS_TOKEN&&LINE_CHANNEL_SECRET)}));
+app.get("/api/health",(req,res)=>res.json({ok:true,service:"yipin-order",lineConfigured:Boolean(LINE_CHANNEL_ACCESS_TOKEN&&LINE_CHANNEL_SECRET),persistentStorage:Boolean(dbPool),storageMode:dbPool?"postgresql":"temporary-json"}));
 
 app.post("/webhook",async(req,res)=>{
   if(!verifyLineSignature(req)) return res.status(401).send("Invalid signature");
@@ -737,14 +784,7 @@ app.post("/api/orders",async(req,res)=>{
   if(method==="外送"&&!String(o.address||"").trim())
     return res.status(400).json({error:"請填寫外送地址"});
 
-  let lineUserId="";
-  if(o.lineIdToken){
-    try{
-      lineUserId=await verifyLineIdToken(o.lineIdToken)||"";
-    }catch(e){
-      console.error("[ORDER] LINE user verify failed",e?.message);
-    }
-  }
+  const lineUserId=await resolveLineUserId(o);
 
   const order={
     id:id(),
@@ -768,7 +808,8 @@ app.post("/api/orders",async(req,res)=>{
   await writeOrders(orders);
   io.emit("new-order",order);
   sendWebPush(pushPayload(order,"new")).catch(e=>console.error("[PUSH] new order",e?.message));
-  res.json(order);
+  const lineCustomerNotified=await notifyOrderReceived(order);
+  res.json({...order,lineCustomerNotified});
 });
 
 app.get("/api/orders/:id",(req,res)=>{const o=readOrders().find(x=>x.id===req.params.id);if(!o)return res.status(404).json({error:"找不到訂單"});res.json({id:o.id,status:o.status,pickup:o.pickup,total:o.total,createdAt:o.createdAt})});
