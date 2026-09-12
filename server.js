@@ -707,8 +707,6 @@ app.get("/api/linepay/confirm",async(req,res)=>{
       hasLineUserId:Boolean(order.lineUserId)
     });
 
-    await notifyLinePaySuccess(order);
-
     res.redirect(`${BASE_URL}/?linepay=success&orderId=${encodeURIComponent(orderId)}`);
   }catch(e){
     console.error("[LINEPAY] confirm exception",{
@@ -808,8 +806,7 @@ app.post("/api/orders",async(req,res)=>{
   await writeOrders(orders);
   io.emit("new-order",order);
   sendWebPush(pushPayload(order,"new")).catch(e=>console.error("[PUSH] new order",e?.message));
-  const lineCustomerNotified=await notifyOrderReceived(order);
-  res.json({...order,lineCustomerNotified});
+  res.json({...order,lineCustomerNotified:false});
 });
 
 app.get("/api/orders/:id",(req,res)=>{const o=readOrders().find(x=>x.id===req.params.id);if(!o)return res.status(404).json({error:"找不到訂單"});res.json({id:o.id,status:o.status,pickup:o.pickup,total:o.total,createdAt:o.createdAt})});
@@ -829,7 +826,7 @@ app.post("/api/admin/orders/:id/status",async(req,res)=>{
   await writeOrders(orders);
   io.emit("order-updated",o);
 
-  const notified=await notifyCustomerForStatus(o,status);
+  const notified=["accepted","done"].includes(status) ? await notifyCustomerForStatus(o,status) : false;
   res.json({...o,lineCustomerNotified:notified});
 });
 
