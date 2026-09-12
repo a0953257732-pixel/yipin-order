@@ -35,7 +35,7 @@ main{max-width:1280px;margin:0 auto;padding:20px 18px 80px}.stats{display:grid;g
 <div id="app" class="hidden">
 <header><div class="head">
   <div class="brand"><strong>一品現泡茶｜接單後台</strong><small id="lastUpdate">—</small></div>
-  <div class="head-actions"><button class="ghost" onclick="loadOrders()">重新整理</button><button class="ghost" onclick="logout()">登出</button></div>
+  <div class="head-actions"><button id="soundBtn" class="ghost" onclick="toggleSound()">🔔 鈴聲：開</button><button class="ghost" onclick="testSound()">測試鈴聲</button><button class="ghost" onclick="loadOrders()">重新整理</button><button class="ghost" onclick="logout()">登出</button></div>
 </div></header>
 <main>
   <section class="stats">
@@ -81,7 +81,39 @@ main{max-width:1280px;margin:0 auto;padding:20px 18px 80px}.stats{display:grid;g
 <script>
 let orders=[];
 let currentTab='active';
+let soundEnabled=localStorage.getItem('yipin_sound_enabled')!=='0';
+let audioCtx=null;
+let initialOrdersLoaded=false;
+let knownOrderIds=new Set();
 const STATUS_LABEL={new:'🔔 新訂單',accepted:'✅ 已接單',making:'🥤 製作中',done:'✔ 已完成',cancelled:'✕ 已取消'};
+function ensureAudio(){
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return null;
+    if(!audioCtx)audioCtx=new AC();
+    if(audioCtx.state==='suspended')audioCtx.resume();
+    return audioCtx;
+  }catch(e){return null}
+}
+function playAlarm(){
+  if(!soundEnabled)return;
+  const ctx=ensureAudio();
+  if(!ctx)return;
+  const now=ctx.currentTime;
+  const notes=[880,1174,880,1174,880,1174];
+  notes.forEach((freq,i)=>{
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type='sine';o.frequency.value=freq;
+    const st=now+i*0.22;
+    g.gain.setValueAtTime(0.0001,st);
+    g.gain.exponentialRampToValueAtTime(0.28,st+0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001,st+0.16);
+    o.connect(g);g.connect(ctx.destination);o.start(st);o.stop(st+0.18);
+  });
+}
+function updateSoundBtn(){const b=document.getElementById('soundBtn');if(b)b.textContent=soundEnabled?'🔔 鈴聲：開':'🔕 鈴聲：關'}
+function toggleSound(){soundEnabled=!soundEnabled;localStorage.setItem('yipin_sound_enabled',soundEnabled?'1':'0');ensureAudio();updateSoundBtn();if(soundEnabled)playAlarm()}
+function testSound(){ensureAudio();playAlarm()}
 function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 function localDate(v){if(!v)return '-';const d=new Date(v);if(Number.isNaN(d.getTime()))return esc(v);return d.toLocaleString('zh-TW',{hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}
 function isToday(v){const d=new Date(v),n=new Date();return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate()}
@@ -89,12 +121,22 @@ function itemPrice(x){return Number(x?.price||0)+(Array.isArray(x?.tops)?x.tops.
 function itemDetail(x){const a=[];if(x.sweet||x.sugar)a.push(x.sweet||x.sugar);if(x.ice)a.push(x.ice);const tops=(x.tops||x.addons||[]).map(t=>typeof t==='string'?t:t.name).filter(Boolean);if(tops.length)a.push('加料：'+tops.join('、'));return a.join('｜')}
 async function login(){
  const pin=document.getElementById('pin').value.trim();document.getElementById('loginErr').textContent='';
- try{const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});const d=await r.json();if(!d.ok){document.getElementById('loginErr').textContent='PIN 錯誤';return}sessionStorage.setItem('yipin_admin_ok','1');showApp()}catch(e){document.getElementById('loginErr').textContent='無法連線後台'}
+ try{const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});const d=await r.json();if(!d.ok){document.getElementById('loginErr').textContent='PIN 錯誤';return}sessionStorage.setItem('yipin_admin_ok','1');ensureAudio();showApp()}catch(e){document.getElementById('loginErr').textContent='無法連線後台'}
 }
 function logout(){sessionStorage.removeItem('yipin_admin_ok');location.reload()}
-function showApp(){document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');loadOrders()}
+function showApp(){document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');ensureAudio();updateSoundBtn();loadOrders()}
 async function loadOrders(){
- try{const r=await fetch('/api/admin/orders',{cache:'no-store'});if(!r.ok)throw new Error();orders=await r.json();if(!Array.isArray(orders))orders=[];renderAll();document.getElementById('lastUpdate').textContent='最後更新 '+new Date().toLocaleTimeString('zh-TW',{hour12:false})}catch(e){document.getElementById('lastUpdate').textContent='讀取訂單失敗'}
+ try{
+  const r=await fetch('/api/admin/orders',{cache:'no-store'});if(!r.ok)throw new Error();
+  const fresh=await r.json();orders=Array.isArray(fresh)?fresh:[];
+  const ids=new Set(orders.map(o=>o.id));
+  if(initialOrdersLoaded){
+    const hasNew=orders.some(o=>o.status==='new'&&!knownOrderIds.has(o.id));
+    if(hasNew)playAlarm();
+  }
+  knownOrderIds=ids;initialOrdersLoaded=true;
+  renderAll();document.getElementById('lastUpdate').textContent='最後更新 '+new Date().toLocaleTimeString('zh-TW',{hour12:false})
+ }catch(e){document.getElementById('lastUpdate').textContent='讀取訂單失敗'}
 }
 function setTab(tab){currentTab=tab;document.getElementById('tabActive').classList.toggle('active',tab==='active');document.getElementById('tabHistory').classList.toggle('active',tab==='history');document.getElementById('activePanel').classList.toggle('hidden',tab!=='active');document.getElementById('historyPanel').classList.toggle('hidden',tab!=='history');if(tab==='history')renderHistory()}
 function renderAll(){
@@ -136,7 +178,7 @@ async function changeStatus(id,status){
 }
 if(sessionStorage.getItem('yipin_admin_ok')==='1')showApp();
 else document.getElementById('pin').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
-try{const socket=io();socket.on('new-order',o=>{orders=[o,...orders.filter(x=>x.id!==o.id)];renderAll()});socket.on('order-updated',o=>{const i=orders.findIndex(x=>x.id===o.id);if(i>=0)orders[i]=o;else orders.unshift(o);renderAll()})}catch(e){}
+try{const socket=io();socket.on('new-order',o=>{const isReallyNew=!knownOrderIds.has(o.id);knownOrderIds.add(o.id);orders=[o,...orders.filter(x=>x.id!==o.id)];renderAll();if(isReallyNew)playAlarm()});socket.on('order-updated',o=>{knownOrderIds.add(o.id);const i=orders.findIndex(x=>x.id===o.id);if(i>=0)orders[i]=o;else orders.unshift(o);renderAll()})}catch(e){}
 setInterval(()=>{if(!document.getElementById('app').classList.contains('hidden'))loadOrders()},30000);
 </script>
 </body>
