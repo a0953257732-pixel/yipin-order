@@ -26,7 +26,8 @@ const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:yipin969@gmail.com";
 const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || (LINE_CHANNEL_SECRET || ADMIN_PIN || "yipin-admin-session");
 const ADMIN_COOKIE = "yipin_admin_session";
-const ADMIN_SESSION_DAYS = 180;
+// Keep the signed admin login for ten years. It is cleared immediately by explicit logout.
+const ADMIN_SESSION_DAYS = 3650;
 if(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY){webpush.setVapidDetails(VAPID_SUBJECT,VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY);}
 
 // LINE Pay 正式環境（沿用你 Render 現有的 Key 名稱）
@@ -544,7 +545,7 @@ app.delete("/api/line-send-token/:token",(req,res)=>{
 });
 
 
-app.get("/api/admin/session",(req,res)=>res.json({ok:adminLoggedIn(req)}));
+app.get("/api/admin/session",(req,res)=>{const ok=adminLoggedIn(req);if(ok)setAdminCookie(res,createAdminSession());res.json({ok})});
 app.post("/api/admin/logout",(req,res)=>{clearAdminCookie(res);res.json({ok:true})});
 app.get("/api/push/public-key",(req,res)=>res.json({ok:Boolean(VAPID_PUBLIC_KEY),publicKey:VAPID_PUBLIC_KEY}));
 app.post("/api/push/subscribe",async(req,res)=>{if(!adminLoggedIn(req))return res.status(401).json({error:"請先登入後台"});const sub=req.body?.subscription;if(!sub?.endpoint)return res.status(400).json({error:"缺少推播訂閱資料"});const list=readPushSubs().filter(x=>x?.endpoint!==sub.endpoint);list.push(sub);await writePushSubs(list.slice(-20));res.json({ok:true,count:list.length})});
