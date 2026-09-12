@@ -617,13 +617,21 @@ if (typeof io === 'function') {
 function renderStatus(st){const map={new:['🔔 新訂單','snew'],accepted:['👋 已接單','saccepted'],making:['🥤 製作中','smaking'],done:['✅ 已完成','sdone']};const [t,id]=map[st]||map.new;document.getElementById('statusTitle').textContent=t;['snew','saccepted','smaking','sdone'].forEach(x=>document.getElementById(x).classList.toggle('on',x===id||(['snew','saccepted','smaking','sdone'].indexOf(x)<=['snew','saccepted','smaking','sdone'].indexOf(id))));}
 
 async function returnToLine(){
+  closeM('successModal');
   try{
     if (window.liff && liff.isInClient()){
       liff.closeWindow();
       return;
     }
   }catch(e){}
-  alert('訂單已完成。若目前不是在 LINE App 內開啟，請回到官方 LINE。');
+  // LINE may open the endpoint in its in-app browser instead of a LIFF window.
+  // In that case liff.isInClient() is false even though the user is inside LINE.
+  try{window.close()}catch(e){}
+  setTimeout(()=>{
+    try{
+      if(document.visibilityState==='visible' && history.length>1) history.back();
+    }catch(e){}
+  },180);
 }
 
 async function boot(){
