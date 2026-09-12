@@ -362,14 +362,25 @@ function customerStatusMessage(order,status){
   const method=order.method==="外送"?"外送":"門市自取";
 
   if(status==="accepted"){
+    const items=(order.items||[]).map((x,i)=>{
+      const tops=(x.tops||x.addons||[]).map(t=>typeof t==="string"?t:t?.name).filter(Boolean);
+      const sweet=x.sweet||x.sugar||"";
+      const ice=x.ice||"";
+      const price=Number(x.price||0)+(x.tops||[]).reduce((a,t)=>a+Number(t?.p||0),0);
+      return `${i+1}. ${x.name||x.title||"品項"}${sweet?`｜${sweet}`:""}${ice?`｜${ice}`:""}${tops.length?`｜加料：${tops.join("、")}`:""}${price?`｜$${price}`:""}`;
+    });
     return [
       "✅ 一品現泡茶｜店家已接單",
       `訂單編號：${order.id}`,
       `${method}時間：${time}`,
-      `金額：$${order.total}`,
+      "",
+      ...items,
+      "",
+      `💰 總金額：$${order.total}`,
+      order.remark?`備註：${order.remark}`:"",
       "",
       "店家已確認您的訂單，會開始為您準備 🧋"
-    ].join("\n");
+    ].filter(Boolean).join("\n");
   }
   if(status==="making"){
     return [
