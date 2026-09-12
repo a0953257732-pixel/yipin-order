@@ -139,7 +139,7 @@ async function login(){
  const pin=document.getElementById('pin').value.trim();document.getElementById('loginErr').textContent='';
  try{const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});const d=await r.json();if(!d.ok){document.getElementById('loginErr').textContent='PIN 錯誤';return}sessionStorage.setItem('yipin_admin_ok','1');ensureAudio();showApp()}catch(e){document.getElementById('loginErr').textContent='無法連線後台'}
 }
-function logout(){sessionStorage.removeItem('yipin_admin_ok');location.reload()}
+async function logout(){try{await fetch('/api/admin/logout',{method:'POST'})}catch(e){}sessionStorage.removeItem('yipin_admin_ok');location.reload()}
 function showApp(){document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');ensureAudio();updateSoundBtn();loadSystemStatus();loadOrders()}
 async function loadOrders(){
  try{
@@ -195,8 +195,15 @@ async function changeStatus(id,status){
  if(status==='cancelled'&&!confirm('確定要取消這張訂單？'))return;
  try{const r=await fetch('/api/admin/orders/'+encodeURIComponent(id)+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'更新失敗')}const updated=await r.json();const i=orders.findIndex(o=>o.id===id);if(i>=0)orders[i]=updated;renderAll();if(['done','cancelled'].includes(status)){setTab('history')} }catch(e){alert(e.message||'更新失敗')}
 }
-if(sessionStorage.getItem('yipin_admin_ok')==='1')showApp();
-else document.getElementById('pin').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
+async function restoreAdminLogin(){
+ try{
+  const r=await fetch('/api/admin/session',{cache:'no-store'}),d=await r.json();
+  if(d.ok){sessionStorage.setItem('yipin_admin_ok','1');showApp();return}
+ }catch(e){}
+ sessionStorage.removeItem('yipin_admin_ok');
+ document.getElementById('pin').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
+}
+restoreAdminLogin();
 try{const socket=io();socket.on('new-order',o=>{const isReallyNew=!knownOrderIds.has(o.id);knownOrderIds.add(o.id);orders=[o,...orders.filter(x=>x.id!==o.id)];renderAll();if(isReallyNew)playAlarm()});socket.on('order-updated',o=>{knownOrderIds.add(o.id);const i=orders.findIndex(x=>x.id===o.id);if(i>=0)orders[i]=o;else orders.unshift(o);renderAll()})}catch(e){}
 setInterval(()=>{if(!document.getElementById('app').classList.contains('hidden'))loadOrders()},30000);
 setInterval(()=>{if(!document.getElementById('app').classList.contains('hidden'))renderAll()},60000);
